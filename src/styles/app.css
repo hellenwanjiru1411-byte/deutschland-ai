@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Colours come from the owner's earlier mockup, so the site keeps
+ * the same deep green / lime / off-white feel.
+ *
+ * Fonts: system stacks only. No Google Fonts, no CDN, no external request of any
+ * kind — an external font would leak every visitor's IP address to a third party.
+ */
+@theme {
+  --color-paper: #f4f6f1;
+  --color-surface: #ffffff;
+  --color-ink: #17231f;
+  --color-ink-soft: #3e4b45;
+  --color-muted: #5f6d67;
+  --color-line: #dce3dc;
+  --color-brand: #1e654d;
+  --color-brand-dark: #154c39;
+  --color-brand-soft: #e8eee7;
+  --color-lime: #d8f278;
+  --color-danger: #9b2c1f;
+  --color-danger-soft: #fdecea;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+  }
+  ::selection {
+    background: var(--color-lime);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  /* Written out per class: Tailwind 4 will not @apply another custom class. */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition;
+  }
+  .btn-primary {
+    @apply bg-brand text-white hover:bg-brand-dark;
+  }
+  .btn-secondary {
+    @apply border border-line bg-surface text-ink hover:border-brand hover:text-brand;
+  }
+  .btn-ghost {
+    @apply text-ink-soft hover:text-brand;
+  }
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.14em] text-brand;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+  .field-label {
+    @apply block text-sm font-semibold text-ink;
+  }
+  .field-input {
+    @apply block w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-base text-ink outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-2 focus:ring-brand/15;
+  }
+  .field-error {
+    @apply text-sm font-medium text-danger;
+  }
+  .field-hint {
+    @apply text-xs text-muted;
+  }
+  .alert-error {
+    @apply rounded-lg border border-danger/25 bg-danger-soft px-4 py-3 text-sm font-medium text-danger;
+  }
+  .alert-success {
+    @apply rounded-lg border border-brand/25 bg-brand-soft px-4 py-3 text-sm font-medium text-brand-dark;
+  }
+  .prose-link {
+    @apply font-semibold text-brand underline underline-offset-4 hover:text-brand-dark;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
