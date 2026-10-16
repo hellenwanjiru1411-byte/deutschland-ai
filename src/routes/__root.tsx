@@ -1,14 +1,23 @@
 import {
   HeadContent,
-  Link,
   Outlet,
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { AppProvider, Footer, Header, useT } from "~/components/app";
-import { getDictionary, resolveLocale } from "~/i18n";
+import { AppProvider, Footer, Header } from "~/components/app";
+import {
+  AppErrorBoundary,
+  ErrorShell,
+  ErrorView,
+  NotFoundView,
+  RootErrorScreen,
+  reportFailure,
+} from "~/components/status";
+import { getDictionary } from "~/i18n";
+import { pageLocale } from "~/lib/page-locale";
 import { getBootstrap } from "~/server/fns";
 import appCss from "~/styles/app.css?url";
 
@@ -17,8 +26,12 @@ export const Route = createRootRoute({
   // server function: it reads the language cookie and the session cookie and
   // returns only the name and email of the signed-in user — never a token.
   loader: async () => getBootstrap(),
-  head: ({ loaderData }) => {
-    const t = getDictionary(resolveLocale(loaderData?.locale));
+  head: async ({ loaderData }) => {
+    // The title and description of the server-rendered document are built from
+    // the language files. `pageLocale` resolves the visitor's language without
+    // depending on match data that may not be there yet — see
+    // `src/lib/page-locale.ts` — so the HTML is right with JavaScript off.
+    const t = getDictionary(await pageLocale(loaderData?.locale));
     return {
       meta: [
         { charSet: "utf-8" },
@@ -35,20 +48,50 @@ export const Route = createRootRoute({
       ],
     };
   },
-  notFoundComponent: () => <NotFound />,
+  // A crash in the root route takes the whole layout with it, so this screen
+  // brings its own document. Crashes below the root are caught by the router's
+  // `defaultErrorComponent` (see `src/router.tsx`) or by the boundaries in
+  // `RootComponent` just below.
+  errorComponent: RootError,
+  notFoundComponent: () => <NotFoundView />,
   component: RootComponent,
 });
+
+function RootError({ error }: ErrorComponentProps) {
+  reportFailure("root-route", error);
+  return <RootErrorScreen />;
+}
 
 function RootComponent() {
   const { locale, user, bookingUrl, contactEmail } = Route.useLoaderData();
   return (
     <RootDocument locale={locale}>
       <AppProvider value={{ locale, user, bookingUrl, contactEmail }}>
-        <Header />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <Footer />
+        {/*
+          SAFETY NETS. Three layers, each for a different failure:
+            - a route's own error boundary (see the routes) shows the error page
+              inside this layout, so the header and footer stay;
+            - `AppErrorBoundary scope="page"` catches a crash in the layout area
+              itself, for instance in a route's error screen;
+            - `AppErrorBoundary scope="app-shell"` catches a crash in the header,
+            the footer or the provider. Its fallback deliberately does NOT
+            render the header and footer again — they are what may have broken,
+            and re-rendering them could crash the fallback too.
+        */}
+        <AppErrorBoundary
+          scope="app-shell"
+          fallback={() => (
+            <ErrorShell locale={locale} contactEmail={contactEmail} />
+          )}
+        >
+          <Header />
+          <main className="flex-1">
+            <AppErrorBoundary scope="page" fallback={() => <ErrorView />}>
+              <Outlet />
+            </AppErrorBoundary>
+          </main>
+          <Footer />
+        </AppErrorBoundary>
       </AppProvider>
     </RootDocument>
   );
@@ -71,29 +114,5 @@ function RootDocument({
         <Scripts />
       </body>
     </html>
-  );
-}
-
-/**
- * 404 page. Every word comes from the language file, so translating it is a data
- * change — and the visitor gets it in the language they are reading the site in,
- * because the component sits inside the app provider like any other page.
- */
-function NotFound() {
-  const t = useT();
-  return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-24 text-center sm:px-6">
-      <p className="eyebrow">404</p>
-      <h1 className="mt-4 text-3xl font-semibold">{t.notFound.title}</h1>
-      <p className="mt-4 text-base leading-relaxed text-muted">{t.notFound.lead}</p>
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Link to="/" className="btn-secondary">
-          {t.nav.home}
-        </Link>
-        <Link to="/anliegen" className="btn-primary">
-          {t.nav.intake}
-        </Link>
-      </div>
-    </section>
   );
 }

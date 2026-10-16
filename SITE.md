@@ -29,6 +29,25 @@ file. The `package.json` scripts (`publish`, `go-live`) exist for setups whose
 Website section tells you to run them; don't run them otherwise. Server logs live
 in `.run/`.
 
+## Smoke test
+
+One command checks the public surface of the site and **exits non-zero when
+anything is wrong** — run it after every publish, and against the live URL:
+
+```bash
+bun run smoke                                   # the live site
+bun run smoke http://localhost:3000             # a local server
+SMOKE_BASE_URL=http://localhost:3000 bun run smoke
+```
+
+`scripts/smoke.mjs` checks that `/` is up and carries the brand "AIE Deutschland"
+and nothing of the old brand, that `/registrieren`, `/anmelden`, `/robots.txt`
+and `/favicon.ico` answer, that `/anliegen` sends a signed-out visitor to the
+sign-in page, that an unknown path is a real 404 page in the visitor's language,
+and that the page titles are the ones in `src/i18n/` — in German *and* in
+English. It prints `PASS`/`FAIL` per check and a final summary, and it is
+read-only: no accounts, nothing written to the database.
+
 ## Making it dynamic
 
 The site is static today, but adding backend behavior is one file away — no second

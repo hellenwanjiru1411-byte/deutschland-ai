@@ -3,7 +3,8 @@ import { useState, type FormEvent } from "react";
 
 import { useT } from "~/components/app";
 import { ErrorAlert, Field, SuccessAlert } from "~/components/form";
-import { getDictionary, resolveLocale } from "~/i18n";
+import { LoadingNotice, RouteErrorScreen } from "~/components/status";
+import { getDictionary } from "~/i18n";
 import {
   ALLOWED_FILE_TYPES,
   MAX_FILES,
@@ -12,6 +13,7 @@ import {
   STATES,
   SUBJECT_KEYS,
 } from "~/lib/constants";
+import { pageLocale } from "~/lib/page-locale";
 import {
   getBootstrap,
   submitIntake,
@@ -26,12 +28,22 @@ export const Route = createFileRoute("/anliegen")({
     if (!bootstrap.user) throw redirect({ to: "/anmelden" });
     return bootstrap;
   },
-  head: () => ({
-    meta: [
-      { title: getDictionary(resolveLocale(undefined)).meta.intakeTitle },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
-  }),
+  head: async ({ loaderData }) => {
+    // The title in the visitor's language, in the server-rendered HTML. The
+    // loader's own result carries the language when it is available and the
+    // request does otherwise — see `src/lib/page-locale.ts`.
+    const t = getDictionary(await pageLocale(loaderData?.locale));
+    return {
+      meta: [
+        { title: t.meta.intakeTitle },
+        { name: "robots", content: "noindex, nofollow" },
+      ],
+    };
+  },
+  // A visible notice while the private page is being fetched, and a calm error
+  // screen instead of a stack trace if the fetch fails.
+  pendingComponent: LoadingNotice,
+  errorComponent: RouteErrorScreen,
   // Belt and braces: the page is private, so it must never be indexed.
   headers: () => ({ "X-Robots-Tag": "noindex, nofollow" }),
   component: IntakePage,
@@ -321,7 +333,12 @@ function IntakePage() {
           ) : null}
         </div>
 
-        <button type="submit" className="btn-primary w-full" disabled={busy}>
+        <button
+          type="submit"
+          className="btn-primary w-full"
+          disabled={busy}
+          aria-busy={busy}
+        >
           {busy ? t.intake.sending : t.intake.submit}
         </button>
       </form>

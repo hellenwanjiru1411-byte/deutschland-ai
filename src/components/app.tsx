@@ -1,4 +1,4 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
 
 import {
@@ -79,73 +79,114 @@ function Wordmark() {
  * Language switcher. The choice is stored in a cookie on the server and the page
  * then reloads, so the server-rendered `<html lang>` and the page title are right
  * immediately — there is no flash of the wrong language.
+ *
+ * While the choice is being saved the visitor sees that it is happening, and if
+ * saving fails the page does NOT pretend the language changed: it says so and
+ * stays where it is.
  */
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
   const { locale } = useApp();
   const t = useT();
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function choose(next: Locale) {
     if (next === locale || busy) return;
     setBusy(true);
+    setFailed(false);
     try {
       await setLanguage({
         data: { locale: next, next: window.location.pathname + window.location.search },
       });
-    } finally {
       window.location.reload();
+    } catch {
+      // The language was not saved — reloading here would leave the visitor on
+      // the same page with no explanation, so tell them instead.
+      setFailed(true);
+      setBusy(false);
     }
   }
 
   return (
-    <div
-      role="group"
-      aria-label={t.lang.label}
-      className={`flex items-center rounded-full border border-line bg-surface p-0.5 ${className}`}
-    >
-      {LOCALES.map((code) => {
-        const active = code === locale;
-        return (
-          <button
-            key={code}
-            type="button"
-            lang={code}
-            onClick={() => void choose(code)}
-            aria-current={active ? "true" : undefined}
-            title={LOCALE_NAMES[code]}
-            className={`min-w-9 rounded-full px-2.5 py-1.5 text-xs font-bold tracking-wide transition ${
-              active ? "bg-brand text-white" : "text-ink-soft hover:text-brand"
-            }`}
-          >
-            {LOCALE_LABELS[code]}
-          </button>
-        );
-      })}
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+      <div
+        role="group"
+        aria-label={t.lang.label}
+        className={`flex items-center rounded-full border border-line bg-surface p-0.5 ${className}`}
+      >
+        {LOCALES.map((code) => {
+          const active = code === locale;
+          return (
+            <button
+              key={code}
+              type="button"
+              lang={code}
+              onClick={() => void choose(code)}
+              disabled={busy}
+              aria-busy={busy}
+              aria-current={active ? "true" : undefined}
+              title={LOCALE_NAMES[code]}
+              className={`min-w-9 rounded-full px-2.5 py-1.5 text-xs font-bold tracking-wide transition disabled:opacity-60 ${
+                active ? "bg-brand text-white" : "text-ink-soft hover:text-brand"
+              }`}
+            >
+              {LOCALE_LABELS[code]}
+            </button>
+          );
+        })}
+      </div>
+      {busy ? (
+        <span role="status" className="max-w-[13rem] text-xs leading-tight text-ink-soft">
+          {t.lang.switching}
+        </span>
+      ) : null}
+      {failed ? (
+        <span role="alert" className="max-w-[13rem] text-xs leading-tight text-brand">
+          {t.errors.generic}
+        </span>
+      ) : null}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ header */
 
+/**
+ * Sign out. The label says that it is happening, and if ending the session
+ * fails the visitor stays on the page with a short message rather than being
+ * sent home looking signed in.
+ */
 function SignOutButton() {
   const t = useT();
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   return (
-    <button
-      type="button"
-      className="btn-ghost min-h-11 px-1.5 text-sm sm:px-5"
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          await signOut();
-        } finally {
-          window.location.href = "/";
-        }
-      }}
-    >
-      {t.nav.signOut}
-    </button>
+    <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+      <button
+        type="button"
+        className="btn-ghost min-h-11 px-1.5 text-sm sm:px-5"
+        disabled={busy}
+        aria-busy={busy}
+        onClick={async () => {
+          setBusy(true);
+          setFailed(false);
+          try {
+            await signOut();
+            window.location.href = "/";
+          } catch {
+            setFailed(true);
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? t.nav.signingOut : t.nav.signOut}
+      </button>
+      {failed ? (
+        <span role="alert" className="max-w-[13rem] text-xs leading-tight text-brand">
+          {t.errors.generic}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

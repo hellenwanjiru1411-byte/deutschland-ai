@@ -3,17 +3,18 @@ import { useState, type FormEvent } from "react";
 
 import { useT } from "~/components/app";
 import { ErrorAlert, Field } from "~/components/form";
-import { getDictionary, resolveLocale } from "~/i18n";
+import { RouteErrorScreen } from "~/components/status";
+import { getDictionary } from "~/i18n";
 import { MIN_PASSWORD_LENGTH } from "~/lib/constants";
+import { pageLocale } from "~/lib/page-locale";
 import { signUp, type FieldErrors } from "~/server/fns";
 
 export const Route = createFileRoute("/registrieren")({
-  head: ({ matches }) => {
-    const t = getDictionary(
-      resolveLocale(
-        (matches?.[0]?.loaderData as { locale?: string } | undefined)?.locale,
-      ),
-    );
+  head: async () => {
+    // The title in the visitor's language, in the server-rendered HTML: the
+    // language comes from the request, not from match data. See
+    // `src/lib/page-locale.ts`.
+    const t = getDictionary(await pageLocale());
     return {
       meta: [
         { title: t.meta.signUpTitle },
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/registrieren")({
       ],
     };
   },
+  errorComponent: RouteErrorScreen,
   component: SignUpPage,
 });
 
@@ -148,8 +150,13 @@ function SignUpPage() {
           />
         </Field>
 
-        <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {t.auth.submitSignUp}
+        <button
+          type="submit"
+          className="btn-primary w-full"
+          disabled={busy}
+          aria-busy={busy}
+        >
+          {busy ? t.auth.sendingSignUp : t.auth.submitSignUp}
         </button>
       </form>
 
