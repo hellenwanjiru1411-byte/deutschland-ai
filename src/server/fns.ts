@@ -25,6 +25,7 @@ export type Bootstrap = {
   locale: Locale;
   user: { name: string; email: string } | null;
   bookingUrl: string | null;
+  contactEmail: string | null;
 };
 
 export type FieldErrors = Record<string, string>;

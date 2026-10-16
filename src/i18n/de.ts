@@ -11,16 +11,23 @@
  */
 export const de = {
   htmlLang: "de",
+  // The business name is the same in every language, but it still lives here so
+  // that no page or component ever hardcodes it.
+  brand: {
+    name: "AIE Deutschland",
+    mark: "A",
+  },
   meta: {
-    siteTitle: "Deutschland AI",
-    homeTitle: "Deutschland AI — Schluss mit Behördenfrust",
+    siteTitle: "AIE Deutschland",
+    homeTitle: "AIE Deutschland — Schluss mit Behördenfrust",
     homeDescription:
       "Wir kümmern uns um Anträge, Formulare und Termine bei Behörden in Deutschland. Sagen Sie uns, wo Sie feststecken.",
-    signUpTitle: "Konto erstellen — Deutschland AI",
-    signInTitle: "Anmelden — Deutschland AI",
-    intakeTitle: "Anliegen schildern — Deutschland AI",
+    signUpTitle: "Konto erstellen — AIE Deutschland",
+    signInTitle: "Anmelden — AIE Deutschland",
+    intakeTitle: "Anliegen schildern — AIE Deutschland",
   },
   nav: {
+    label: "Navigation",
     how: "So funktioniert es",
     services: "Was wir übernehmen",
     signIn: "Anmelden",
@@ -100,9 +107,16 @@ export const de = {
     // LEGAL DISCLAIMER — a native speaker must check this wording in any new
     // language before it goes live. Never machine-translate it.
     disclaimer:
-      "Deutschland AI ist kein Anwaltsbüro und keine Behörde. Wir unterstützen bei Anträgen, Formularen und Terminen und leisten keine Rechtsberatung.",
+      "AIE Deutschland ist kein Anwaltsbüro und keine Behörde. Wir unterstützen bei Anträgen, Formularen und Terminen und leisten keine Rechtsberatung.",
     pilot: "Pilotbetrieb",
     freeLine: "Aktuell kostenlos.",
+    // The only contact route we offer. No phone number, no postal address.
+    contactLabel: "Schreiben Sie uns",
+    navLabel: "Fußzeile",
+  },
+  notFound: {
+    title: "Diese Seite gibt es nicht.",
+    lead: "Vielleicht hat sich die Adresse geändert. Sie können zur Startseite zurückgehen oder uns Ihr Anliegen direkt schildern.",
   },
   auth: {
     signUpTitle: "Konto erstellen",
@@ -148,7 +162,7 @@ export const de = {
     // CONSENT TEXT — a native speaker must check this wording in any new
     // language before it goes live. Never machine-translate it.
     consent:
-      "Ich bin damit einverstanden, dass Deutschland AI meine Angaben und Unterlagen vertraulich verarbeitet, um mein Anliegen zu bearbeiten. Ich kann meine Daten jederzeit löschen lassen.",
+      "Ich bin damit einverstanden, dass AIE Deutschland meine Angaben und Unterlagen vertraulich verarbeitet, um mein Anliegen zu bearbeiten. Ich kann meine Daten jederzeit löschen lassen.",
     submit: "Anliegen senden",
     sending: "Wird gesendet …",
     success:
