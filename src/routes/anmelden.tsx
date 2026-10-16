@@ -3,16 +3,17 @@ import { useState, type FormEvent } from "react";
 
 import { useT } from "~/components/app";
 import { ErrorAlert, Field } from "~/components/form";
-import { getDictionary, resolveLocale } from "~/i18n";
+import { RouteErrorScreen } from "~/components/status";
+import { getDictionary } from "~/i18n";
+import { pageLocale } from "~/lib/page-locale";
 import { signIn, type FieldErrors } from "~/server/fns";
 
 export const Route = createFileRoute("/anmelden")({
-  head: ({ matches }) => {
-    const t = getDictionary(
-      resolveLocale(
-        (matches?.[0]?.loaderData as { locale?: string } | undefined)?.locale,
-      ),
-    );
+  head: async () => {
+    // The title in the visitor's language, in the server-rendered HTML: the
+    // language comes from the request, not from match data. See
+    // `src/lib/page-locale.ts`.
+    const t = getDictionary(await pageLocale());
     return {
       meta: [
         { title: t.meta.signInTitle },
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/anmelden")({
       ],
     };
   },
+  errorComponent: RouteErrorScreen,
   component: SignInPage,
 });
 
@@ -98,8 +100,13 @@ function SignInPage() {
           />
         </Field>
 
-        <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {t.auth.submitSignIn}
+        <button
+          type="submit"
+          className="btn-primary w-full"
+          disabled={busy}
+          aria-busy={busy}
+        >
+          {busy ? t.auth.sendingSignIn : t.auth.submitSignIn}
         </button>
       </form>
 

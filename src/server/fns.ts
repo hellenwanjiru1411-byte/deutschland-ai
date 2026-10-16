@@ -48,6 +48,20 @@ export const getBootstrap = createServerFn({ method: "GET" }).handler(
   },
 );
 
+/**
+ * The visitor's language, on its own. The page title in the server-rendered
+ * HTML has to be right before anything is rendered, and that decision cannot
+ * wait for the rest of the page — so `head()` asks for the language through
+ * this one small call. It reads the language cookie only: no database, no
+ * personal data, and it never throws.
+ */
+export const getPageLocale = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ locale: Locale }> => {
+    const server = await import("./data.server");
+    return { locale: server.currentLocale() };
+  },
+);
+
 export const signUp = createServerFn({ method: "POST" })
   .validator(
     (input: { name: string; email: string; password: string; confirm: string }) =>

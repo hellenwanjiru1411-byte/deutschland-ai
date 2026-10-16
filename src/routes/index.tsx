@@ -1,14 +1,15 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { useApp, useT } from "~/components/app";
-import { getDictionary, resolveLocale } from "~/i18n";
+import { RouteErrorScreen } from "~/components/status";
+import { getDictionary } from "~/i18n";
+import { pageLocale } from "~/lib/page-locale";
 
 export const Route = createFileRoute("/")({
-  head: ({ matches }) => {
-    const locale = resolveLocale(
-      (matches?.[0]?.loaderData as { locale?: string } | undefined)?.locale,
-    );
-    const t = getDictionary(locale);
+  head: async () => {
+    // The visitor's language, resolved so the server-rendered title is right
+    // even before any JavaScript runs — see `src/lib/page-locale.ts`.
+    const t = getDictionary(await pageLocale());
     return {
       meta: [
         { title: t.meta.homeTitle },
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/")({
       ],
     };
   },
+  errorComponent: RouteErrorScreen,
   component: Home,
 });
 
