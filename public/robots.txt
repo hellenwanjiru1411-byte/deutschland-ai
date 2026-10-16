@@ -1,0 +1,4 @@
+# /anliegen and the sign-in pages also carry a noindex, nofollow robots meta tag.
+User-agent: *
+Allow: /
+Disallow: /anliegen
