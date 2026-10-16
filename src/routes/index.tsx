@@ -53,9 +53,17 @@ function Home() {
       {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto w-full max-w-6xl px-4 pt-10 pb-14 sm:px-6 sm:pt-16 sm:pb-20">
         <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
-          <div>
+          {/* min-w-0 keeps a long word from stretching the grid column, and the
+              heading scales down on narrow phones so the word still fits. */}
+          <div className="min-w-0">
             <p className="eyebrow">{t.hero.eyebrow}</p>
-            <h1 className="mt-5 text-[2.7rem] leading-[1.03] font-semibold tracking-tight sm:text-6xl lg:text-[4.1rem]">
+            {/*
+              "Behördenfrust." is one unbreakable German word: at 2.7rem it is
+              wider than a 320px phone. It is set smaller on narrow screens,
+              hyphenated where the browser can, and only broken as a last resort
+              — never hidden or clipped.
+            */}
+            <h1 className="mt-5 text-[1.95rem] leading-[1.06] font-semibold tracking-tight hyphens-auto break-words min-[360px]:text-[2.35rem] sm:text-6xl sm:leading-[1.03] lg:text-[4.1rem]">
               {t.hero.title}{" "}
               <span className="text-brand">{t.hero.titleAccent}</span>
             </h1>

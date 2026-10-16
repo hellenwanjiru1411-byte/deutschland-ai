@@ -17,12 +17,15 @@ export type AppState = {
   locale: Locale;
   user: AppUser;
   bookingUrl: string | null;
+  /** From `site.json` — the one contact route the site offers. */
+  contactEmail: string | null;
 };
 
 const AppContext = createContext<AppState>({
   locale: "de",
   user: null,
   bookingUrl: null,
+  contactEmail: null,
 });
 
 export function AppProvider({
@@ -47,22 +50,24 @@ export function useT(): Dictionary {
 /* -------------------------------------------------------------- brand mark */
 
 export function BrandMark({ className = "" }: { className?: string }) {
+  const t = useT();
   return (
     <span
       aria-hidden="true"
       className={`grid h-9 w-9 shrink-0 place-items-center rounded-full bg-lime font-display text-base font-bold text-ink ${className}`}
     >
-      D
+      {t.brand.mark}
     </span>
   );
 }
 
 function Wordmark() {
+  const t = useT();
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="Deutschland AI">
+    <Link to="/" className="flex items-center gap-2.5" aria-label={t.brand.name}>
       <BrandMark />
       <span className="font-display text-lg font-bold tracking-tight">
-        Deutschland&nbsp;AI
+        {t.brand.name}
       </span>
     </Link>
   );
@@ -159,7 +164,7 @@ export function Header() {
         <Wordmark />
 
         <nav
-          aria-label="Navigation"
+          aria-label={t.nav.label}
           className="hidden items-center gap-7 text-sm font-medium text-ink-soft lg:flex"
         >
           <Link to="/" hash="how" className="transition hover:text-brand">
@@ -218,7 +223,7 @@ export function Header() {
 
 export function Footer() {
   const t = useT();
-  const { user } = useApp();
+  const { user, contactEmail } = useApp();
 
   return (
     <footer className="mt-20 bg-ink text-paper">
@@ -228,27 +233,49 @@ export function Footer() {
             <div className="flex items-center gap-2.5">
               <BrandMark />
               <span className="font-display text-lg font-bold tracking-tight">
-                Deutschland&nbsp;AI
+                {t.brand.name}
               </span>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-paper/70">{t.free}</p>
           </div>
 
-          <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-paper/80">
-            <Link to="/anliegen" className="transition hover:text-lime">
-              {t.nav.intake}
-            </Link>
-            {user ? null : (
-              <>
-                <Link to="/anmelden" className="transition hover:text-lime">
-                  {t.nav.signIn}
-                </Link>
-                <Link to="/registrieren" className="transition hover:text-lime">
-                  {t.nav.signUp}
-                </Link>
-              </>
-            )}
-          </nav>
+          <div className="flex flex-col gap-4">
+            <nav
+              aria-label={t.footer.navLabel}
+              className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-paper/80"
+            >
+              <Link to="/anliegen" className="transition hover:text-lime">
+                {t.nav.intake}
+              </Link>
+              {user ? null : (
+                <>
+                  <Link to="/anmelden" className="transition hover:text-lime">
+                    {t.nav.signIn}
+                  </Link>
+                  <Link to="/registrieren" className="transition hover:text-lime">
+                    {t.nav.signUp}
+                  </Link>
+                </>
+              )}
+            </nav>
+
+            {/*
+              CONTACT — the owner's address, read from `site.json` so it is
+              configuration, not copy. It is the only contact route on the site:
+              no phone number, no postal address, no opening hours.
+            */}
+            {contactEmail ? (
+              <p className="text-sm text-paper/80">
+                {t.footer.contactLabel}{" "}
+                <a
+                  href={`mailto:${contactEmail}`}
+                  className="font-semibold break-all text-lime underline underline-offset-4 transition hover:text-white"
+                >
+                  {contactEmail}
+                </a>
+              </p>
+            ) : null}
+          </div>
         </div>
 
         {/*

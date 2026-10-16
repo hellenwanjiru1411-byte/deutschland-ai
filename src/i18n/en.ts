@@ -17,16 +17,23 @@ import type { Dictionary } from "./de";
  */
 export const en: Dictionary = {
   htmlLang: "en",
+  // The business name is the same in every language, but it still lives here so
+  // that no page or component ever hardcodes it.
+  brand: {
+    name: "AIE Deutschland",
+    mark: "A",
+  },
   meta: {
-    siteTitle: "Deutschland AI",
-    homeTitle: "Deutschland AI — stop drowning in paperwork",
+    siteTitle: "AIE Deutschland",
+    homeTitle: "AIE Deutschland — stop drowning in paperwork",
     homeDescription:
       "We take care of applications, forms and appointments with German authorities. Tell us where you are stuck.",
-    signUpTitle: "Create an account — Deutschland AI",
-    signInTitle: "Sign in — Deutschland AI",
-    intakeTitle: "Describe your case — Deutschland AI",
+    signUpTitle: "Create an account — AIE Deutschland",
+    signInTitle: "Sign in — AIE Deutschland",
+    intakeTitle: "Describe your case — AIE Deutschland",
   },
   nav: {
+    label: "Navigation",
     how: "How it works",
     services: "What we take care of",
     signIn: "Sign in",
@@ -107,9 +114,16 @@ export const en: Dictionary = {
     // LEGAL DISCLAIMER — a native speaker must check this wording in any new
     // language before it goes live. Never machine-translate it.
     disclaimer:
-      "Deutschland AI is not a law firm and not a government office. We help with applications, forms and appointments, and we do not provide legal advice.",
+      "AIE Deutschland is not a law firm and not a government office. We help with applications, forms and appointments, and we do not provide legal advice.",
     pilot: "Pilot",
     freeLine: "Currently free of charge.",
+    // The only contact route we offer. No phone number, no postal address.
+    contactLabel: "Email us",
+    navLabel: "Footer",
+  },
+  notFound: {
+    title: "This page does not exist.",
+    lead: "The address may have changed. You can go back to the home page, or send us your case directly.",
   },
   auth: {
     signUpTitle: "Create an account",
@@ -154,7 +168,7 @@ export const en: Dictionary = {
     // CONSENT TEXT — a native speaker must check this wording in any new
     // language before it goes live. Never machine-translate it.
     consent:
-      "I agree that Deutschland AI may process my details and documents confidentially in order to handle my case. I can ask for my data to be deleted at any time.",
+      "I agree that AIE Deutschland may process my details and documents confidentially in order to handle my case. I can ask for my data to be deleted at any time.",
     submit: "Send my case",
     sending: "Sending …",
     success:

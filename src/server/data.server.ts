@@ -22,6 +22,7 @@ import { promisify } from "node:util";
 
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 
+import siteConfig from "../../site.json";
 import { sql } from "~/db";
 import {
   MAX_FILE_BYTES,
@@ -412,10 +413,22 @@ export function bookingUrl(): string | null {
   }
 }
 
+/**
+ * The contact address shown in the footer. Read from `site.json` so the address
+ * is configuration: changing it is an edit to that one file, never a code change.
+ * Anything that is not a plain email address is dropped rather than rendered.
+ */
+export function contactEmail(): string | null {
+  const raw = String(siteConfig.contactEmail ?? "").trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) return null;
+  return raw;
+}
+
 export type Bootstrap = {
   locale: Locale;
   user: { name: string; email: string } | null;
   bookingUrl: string | null;
+  contactEmail: string | null;
 };
 
 export async function bootstrap(): Promise<Bootstrap> {
@@ -424,6 +437,7 @@ export async function bootstrap(): Promise<Bootstrap> {
     locale: currentLocale(),
     user: sessionUser ? { name: sessionUser.name, email: sessionUser.email } : null,
     bookingUrl: bookingUrl(),
+    contactEmail: contactEmail(),
   };
 }
 
