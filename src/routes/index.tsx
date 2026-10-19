@@ -23,7 +23,9 @@ export const Route = createFileRoute("/")({
 
 function Arrow() {
   return (
-    <span aria-hidden="true" className="text-base leading-none">
+    // An arrow points the way the text runs: mirrored in a right-to-left
+    // language, so it still means "onwards".
+    <span aria-hidden="true" className="text-base leading-none rtl:-scale-x-100">
       →
     </span>
   );

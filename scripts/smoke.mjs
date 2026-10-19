@@ -8,15 +8,19 @@
  *
  * It exits 0 only when every check passes and exits 1 as soon as anything is
  * wrong, so it can run unattended. The expected copy and page titles are read
- * from the language files (`src/i18n/de.ts`, `src/i18n/en.ts`) — the test
- * therefore checks what the site is *supposed* to say, not a copy of it.
+ * from the language registry (`src/i18n/index.ts`) — the test therefore checks
+ * what the site is *supposed* to say, not a copy of it.
+ *
+ * Every language the registry declares is checked, and nothing here names a
+ * language itself: adding a language to the registry adds its checks (title,
+ * `<html lang>`, `<html dir>` and 404 copy) automatically, so a new language
+ * cannot go live untested.
  *
  * Nothing here is authenticated and nothing writes to the database: the public
  * surface only. `/anliegen` is checked for the redirect a signed-out visitor
  * gets, which is all a public check can see.
  */
-import { de } from "../src/i18n/de.ts";
-import { en } from "../src/i18n/en.ts";
+import { LANGUAGES } from "../src/i18n/index.ts";
 
 const BASE = (
   process.env.SMOKE_BASE_URL ||
@@ -26,6 +30,9 @@ const BASE = (
 
 /** A path that is not a route, used for the 404 check. */
 const MISSING = "/diese-seite-gibt-es-nicht";
+
+/** The default language: the first entry of the registry. */
+const DEFAULT = LANGUAGES[0];
 
 let passed = 0;
 const failed = [];
@@ -68,6 +75,17 @@ function titleOf(html) {
   return match ? decode(match[1].trim()) : null;
 }
 
+/**
+ * Is `name="value"` on the `<html>` element? The whole opening tag is searched,
+ * so the order of the attributes does not matter.
+ */
+function htmlAttribute(html, name, value) {
+  const tag = /<html\b[^>]*>/i.exec(html);
+  if (!tag) return false;
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${name}\\s*=\\s*["']${escaped}["']`, "i").test(tag[0]);
+}
+
 /** Run one check so that a network error is a failed check, not a crash. */
 async function step(name, fn) {
   try {
@@ -77,7 +95,48 @@ async function step(name, fn) {
   }
 }
 
-console.log(`Smoke test against ${BASE}\n`);
+console.log(`Smoke test against ${BASE}`);
+console.log(
+  `Languages in the registry: ${LANGUAGES.map((l) => `${l.code} (${l.dir})`).join(", ")}\n`,
+);
+
+/* ------------------------------------------------------- the registry itself */
+
+await step("language registry", async () => {
+  const codes = LANGUAGES.map((language) => language.code);
+  expect(
+    "every language has a unique code",
+    new Set(codes).size === codes.length,
+    codes.join(", "),
+  );
+
+  const noDirection = LANGUAGES.filter(
+    (language) => language.dir !== "ltr" && language.dir !== "rtl",
+  ).map((language) => language.code);
+  expect(
+    "every language declares a direction",
+    noDirection.length === 0,
+    noDirection.length > 0 ? `missing for ${noDirection.join(", ")}` : "ltr or rtl",
+  );
+
+  const incomplete = LANGUAGES.filter(
+    (language) => !language.lang || !language.label || !language.name,
+  ).map((language) => language.code);
+  expect(
+    "every language carries a lang tag, a switcher label and a name",
+    incomplete.length === 0,
+    incomplete.length > 0 ? `missing for ${incomplete.join(", ")}` : "all complete",
+  );
+
+  const halfTranslated = LANGUAGES.filter(
+    (language) => typeof language.dictionary?.brand?.name !== "string",
+  ).map((language) => language.code);
+  expect(
+    "every language brings its own dictionary",
+    halfTranslated.length === 0,
+    halfTranslated.length > 0 ? `broken for ${halfTranslated.join(", ")}` : "all present",
+  );
+});
 
 /* ------------------------------------------------ the site itself is there */
 
@@ -85,8 +144,8 @@ await step("GET /", async () => {
   const home = await get("/");
   expect("GET / returns 200", home.status === 200, `status ${home.status}`);
   expect(
-    `GET / shows the brand "${de.brand.name}"`,
-    home.body.includes(de.brand.name),
+    `GET / shows the brand "${DEFAULT.dictionary.brand.name}"`,
+    home.body.includes(DEFAULT.dictionary.brand.name),
     "brand name in the HTML",
   );
   const oldBrand = /deutschland[\s-]ai/i.exec(home.body);
@@ -94,6 +153,17 @@ await step("GET /", async () => {
     "GET / shows no trace of the old brand",
     !oldBrand,
     oldBrand ? `found "${oldBrand[0]}"` : "no match for deutschland-ai",
+  );
+});
+
+await step("default language", async () => {
+  const home = await get("/");
+  expect(
+    `GET / without a language cookie is the default language (${DEFAULT.code})`,
+    titleOf(home.body) === DEFAULT.dictionary.meta.homeTitle &&
+      htmlAttribute(home.body, "lang", DEFAULT.lang) &&
+      htmlAttribute(home.body, "dir", DEFAULT.dir),
+    `lang "${DEFAULT.lang}", dir "${DEFAULT.dir}"`,
   );
 });
 
@@ -133,54 +203,53 @@ await step("static files", async () => {
 });
 
 await step("404 page", async () => {
-  const german = await get(MISSING, { lang: "de" });
-  expect(
-    `GET ${MISSING} returns 404`,
-    german.status === 404,
-    `status ${german.status}`,
-  );
-  expect(
-    "the 404 page shows its German copy",
-    german.body.includes(de.notFound.title),
-    `expected "${de.notFound.title}"`,
-  );
-
-  const english = await get(MISSING, { lang: "en" });
-  expect(
-    "the 404 page follows the selected language",
-    english.body.includes(en.notFound.title),
-    `expected "${en.notFound.title}"`,
-  );
+  for (const language of LANGUAGES) {
+    const response = await get(MISSING, { lang: language.code });
+    expect(
+      `GET ${MISSING} returns 404 in ${language.code}`,
+      response.status === 404,
+      `status ${response.status}`,
+    );
+    expect(
+      `the 404 page shows the ${language.code} copy`,
+      response.body.includes(language.dictionary.notFound.title),
+      `expected "${language.dictionary.notFound.title}"`,
+    );
+  }
 });
 
-await step("page titles", async () => {
-  for (const [lang, dictionary] of [
-    ["de", de],
-    ["en", en],
-  ]) {
-    const home = await get("/", { lang });
+await step("titles, lang and direction", async () => {
+  for (const language of LANGUAGES) {
+    const { code, lang, dir, dictionary: t } = language;
+
+    const home = await get("/", { lang: code });
     expect(
-      `the ${lang} title of / is ${JSON.stringify(dictionary.meta.homeTitle)}`,
-      titleOf(home.body) === dictionary.meta.homeTitle,
+      `the ${code} title of / is ${JSON.stringify(t.meta.homeTitle)}`,
+      titleOf(home.body) === t.meta.homeTitle,
       `got ${JSON.stringify(titleOf(home.body))}`,
     );
     expect(
-      `the ${lang} request renders <html lang="${lang}">`,
-      home.body.includes(`<html lang="${lang}"`),
+      `the ${code} page renders <html lang="${lang}">`,
+      htmlAttribute(home.body, "lang", lang),
       "html lang attribute",
     );
-
-    const signUp = await get("/registrieren", { lang });
     expect(
-      `the ${lang} title of /registrieren is ${JSON.stringify(dictionary.meta.signUpTitle)}`,
-      titleOf(signUp.body) === dictionary.meta.signUpTitle,
+      `the ${code} page renders <html dir="${dir}">`,
+      htmlAttribute(home.body, "dir", dir),
+      "html dir attribute",
+    );
+
+    const signUp = await get("/registrieren", { lang: code });
+    expect(
+      `the ${code} title of /registrieren is ${JSON.stringify(t.meta.signUpTitle)}`,
+      titleOf(signUp.body) === t.meta.signUpTitle,
       `got ${JSON.stringify(titleOf(signUp.body))}`,
     );
 
-    const signIn = await get("/anmelden", { lang });
+    const signIn = await get("/anmelden", { lang: code });
     expect(
-      `the ${lang} title of /anmelden is ${JSON.stringify(dictionary.meta.signInTitle)}`,
-      titleOf(signIn.body) === dictionary.meta.signInTitle,
+      `the ${code} title of /anmelden is ${JSON.stringify(t.meta.signInTitle)}`,
+      titleOf(signIn.body) === t.meta.signInTitle,
       `got ${JSON.stringify(titleOf(signIn.body))}`,
     );
   }

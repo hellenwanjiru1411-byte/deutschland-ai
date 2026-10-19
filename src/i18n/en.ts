@@ -16,7 +16,6 @@ import type { Dictionary } from "./de";
  *     and the LEGAL DISCLAIMER in `footer.disclaimer`. Both carry legal weight.
  */
 export const en: Dictionary = {
-  htmlLang: "en",
   // The business name is the same in every language, but it still lives here so
   // that no page or component ever hardcodes it.
   brand: {

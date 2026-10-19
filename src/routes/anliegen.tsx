@@ -292,7 +292,7 @@ function IntakePage() {
             multiple
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
             onChange={(e) => void onFiles(e)}
-            className="block w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand-dark"
+            className="block w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-sm file:me-3 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand-dark"
           />
         </Field>
 

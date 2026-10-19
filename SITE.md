@@ -21,6 +21,31 @@ vite.config.ts     # serves on 0.0.0.0:3000
 Add a page by creating a new file under `src/routes/` — e.g. `about.tsx` becomes
 `/about`. Files are routes; the router is generated automatically.
 
+## Languages
+
+The site serves **German and English**. Which languages exist is defined in one
+place — the registry `LANGUAGES` in `src/i18n/index.ts` — and the visible language
+switcher, the `lang` cookie, `<html lang>`, `<html dir>`, the server-side language
+resolution and the smoke test all read from it. Adding a language is a data change:
+one dictionary file in `src/i18n/` plus one registry entry. Nothing else.
+
+Two rules hold for every new language:
+
+- The **consent sentence** (`intake.consent`) and the **legal disclaimer**
+  (`footer.disclaimer`) must be written or approved by a native speaker before the
+  language goes live. Machine translation is not acceptable for those two lines.
+  They carry legal weight, and the person has to genuinely understand what they
+  are agreeing to.
+- The smoke test covers **every language in the registry** (its titles, its
+  `<html lang>`, its `<html dir>`, its 404 copy), so a language added later cannot
+  go live unchecked.
+
+Right-to-left languages (Arabic is planned) are supported: a registry entry with
+`dir: "rtl"` mirrors the document, and the layout uses logical spacing and
+alignment utilities. `docs/adding-a-language.md` is the full checklist — the two
+steps, what a native speaker has to check, how to switch a language on, how to run
+the smoke test against it, and the sign-off record to fill in.
+
 ## Serving and shipping
 
 How this site is served and how changes go live **depends on the team's setup**:
@@ -43,10 +68,14 @@ SMOKE_BASE_URL=http://localhost:3000 bun run smoke
 `scripts/smoke.mjs` checks that `/` is up and carries the brand "AIE Deutschland"
 and nothing of the old brand, that `/registrieren`, `/anmelden`, `/robots.txt`
 and `/favicon.ico` answer, that `/anliegen` sends a signed-out visitor to the
-sign-in page, that an unknown path is a real 404 page in the visitor's language,
-and that the page titles are the ones in `src/i18n/` — in German *and* in
-English. It prints `PASS`/`FAIL` per check and a final summary, and it is
-read-only: no accounts, nothing written to the database.
+sign-in page, and that an unknown path is a real 404 page with the right copy. It
+then loops over **every language in the registry** (`src/i18n/index.ts`): the page
+titles from that language's `meta.*` strings, `<html lang>`, `<html dir>`, and the
+404 copy — plus the registry's own consistency (unique code, declared direction,
+present `lang`/`label`/`name`/dictionary) and that `/` with no cookie serves the
+default language. A language added later is covered automatically. It prints
+`PASS`/`FAIL` per check and a final summary, and it is read-only: no accounts,
+nothing written to the database.
 
 ## Making it dynamic
 

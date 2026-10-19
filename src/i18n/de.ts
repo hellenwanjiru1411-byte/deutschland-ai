@@ -3,14 +3,15 @@
  *
  * IMPORTANT for every language added later:
  *   - Add one new file next to this one (e.g. `ar.ts`), export an object with the
- *     same shape as this one, and register it in `src/i18n/index.ts`. Nothing else
- *     in the app has to change.
+ *     same shape as this one, and add one entry to `LANGUAGES` in
+ *     `src/i18n/index.ts`. Nothing else in the app has to change.
  *   - A new language must be written by a human who speaks it. Two pieces of text
  *     may NEVER go live machine-translated: the CONSENT text in `intake.consent`
  *     and the LEGAL DISCLAIMER in `footer.disclaimer`. Both carry legal weight.
+ *   - `docs/adding-a-language.md` is the full checklist, including what a native
+ *     speaker has to sign off before the language goes live.
  */
 export const de = {
-  htmlLang: "de",
   // The business name is the same in every language, but it still lives here so
   // that no page or component ever hardcodes it.
   brand: {
