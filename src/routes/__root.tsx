@@ -16,7 +16,7 @@ import {
   RootErrorScreen,
   reportFailure,
 } from "~/components/status";
-import { getDictionary } from "~/i18n";
+import { getDictionary, languageOf, type Language } from "~/i18n";
 import { pageLocale } from "~/lib/page-locale";
 import { getBootstrap } from "~/server/fns";
 import appCss from "~/styles/app.css?url";
@@ -64,8 +64,11 @@ function RootError({ error }: ErrorComponentProps) {
 
 function RootComponent() {
   const { locale, user, bookingUrl, contactEmail } = Route.useLoaderData();
+  // The language's own description — `lang` and `dir` come from the registry, so
+  // a right-to-left language mirrors the document without any change here.
+  const language = languageOf(locale);
   return (
-    <RootDocument locale={locale}>
+    <RootDocument language={language}>
       <AppProvider value={{ locale, user, bookingUrl, contactEmail }}>
         {/*
           SAFETY NETS. Three layers, each for a different failure:
@@ -98,14 +101,19 @@ function RootComponent() {
 }
 
 function RootDocument({
-  locale,
+  language,
   children,
 }: {
-  locale: string;
+  language: Language;
   children: ReactNode;
 }) {
   return (
-    <html lang={locale}>
+    /*
+      `lang` and `dir` are both read from the language registry. `dir="rtl"`
+      mirrors the whole document; `dir="ltr"` is written out as well, so the
+      attribute is always the registry's answer rather than a browser default.
+    */
+    <html lang={language.lang} dir={language.dir}>
       <head>
         <HeadContent />
       </head>

@@ -2,10 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { createContext, useContext, useState, type ReactNode } from "react";
 
 import {
+  DEFAULT_LOCALE,
   getDictionary,
-  LOCALES,
-  LOCALE_LABELS,
-  LOCALE_NAMES,
+  LANGUAGES,
   type Dictionary,
   type Locale,
 } from "~/i18n";
@@ -22,7 +21,7 @@ export type AppState = {
 };
 
 const AppContext = createContext<AppState>({
-  locale: "de",
+  locale: DEFAULT_LOCALE,
   user: null,
   bookingUrl: null,
   contactEmail: null,
@@ -114,23 +113,23 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
         aria-label={t.lang.label}
         className={`flex items-center rounded-full border border-line bg-surface p-0.5 ${className}`}
       >
-        {LOCALES.map((code) => {
-          const active = code === locale;
+        {LANGUAGES.map((language) => {
+          const active = language.code === locale;
           return (
             <button
-              key={code}
+              key={language.code}
               type="button"
-              lang={code}
-              onClick={() => void choose(code)}
+              lang={language.lang}
+              onClick={() => void choose(language.code)}
               disabled={busy}
               aria-busy={busy}
               aria-current={active ? "true" : undefined}
-              title={LOCALE_NAMES[code]}
+              title={language.name}
               className={`min-w-9 rounded-full px-2.5 py-1.5 text-xs font-bold tracking-wide transition disabled:opacity-60 ${
                 active ? "bg-brand text-white" : "text-ink-soft hover:text-brand"
               }`}
             >
-              {LOCALE_LABELS[code]}
+              {language.label}
             </button>
           );
         })}

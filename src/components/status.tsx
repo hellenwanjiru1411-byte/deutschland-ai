@@ -2,7 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { Component, type ReactNode } from "react";
 
 import { useApp, useT } from "~/components/app";
-import { DEFAULT_LOCALE, getDictionary, type Locale } from "~/i18n";
+import {
+  DEFAULT_LOCALE,
+  getDictionary,
+  languageOf,
+  type Locale,
+} from "~/i18n";
 import appCss from "~/styles/app.css?url";
 import siteConfig from "../../site.json";
 
@@ -132,8 +137,11 @@ export function ErrorShell({
  */
 export function RootErrorScreen({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
   const t = getDictionary(locale);
+  // `lang` and `dir` come from the language registry: the last-resort screen
+  // mirrors itself for a right-to-left language like every other page.
+  const language = languageOf(locale);
   return (
-    <html lang={t.htmlLang}>
+    <html lang={language.lang} dir={language.dir}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

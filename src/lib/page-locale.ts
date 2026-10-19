@@ -17,8 +17,9 @@ import { getPageLocale } from "~/server/fns";
  *      (the root route — this is the same value `<html lang>` is rendered
  *      from, so the title can never disagree with the document language);
  *   2. the language the root route's loader put on its match, when it is there;
- *   3. in the browser, the language the server already put on the document,
- *      which is the same decision — the language switcher reloads the page, so
+ *   3. in the browser, the language the server already put on the document
+ *      (`<html lang>`, resolved through the language registry, which matches a
+ *      code or a `lang` tag) — the language switcher reloads the page, so
  *      `<html lang>` never goes stale;
  *   4. on the server, the language cookie of the request (a small server call
  *      that reads one cookie and nothing else);
