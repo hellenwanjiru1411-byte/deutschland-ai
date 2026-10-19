@@ -8,6 +8,7 @@
     "build": "vite build",
     "start": "bun run serve.ts",
     "publish": "bash ./publish.sh",
+    "smoke": "bun scripts/smoke.mjs",
     "go-live": "bash ./go-live.sh",
     "format": "prettier --write ."
   },

@@ -33,12 +33,18 @@ export const de = {
     signIn: "Anmelden",
     signUp: "Konto erstellen",
     signOut: "Abmelden",
+    signingOut: "Wird abgemeldet …",
     intake: "Anliegen schildern",
     home: "Startseite",
   },
   lang: {
     label: "Sprache wählen",
     switchTo: "Auf Englisch ansehen",
+    switching: "Sprache wird umgestellt …",
+  },
+  status: {
+    // Shown while a page that needs the server is still loading.
+    loading: "Einen Moment bitte — die Seite wird geladen.",
   },
   hero: {
     eyebrow: "Hilfe bei Anträgen, Formularen und Terminen",
@@ -118,6 +124,14 @@ export const de = {
     title: "Diese Seite gibt es nicht.",
     lead: "Vielleicht hat sich die Adresse geändert. Sie können zur Startseite zurückgehen oder uns Ihr Anliegen direkt schildern.",
   },
+  // The screen a visitor sees when something in the site breaks. Plain language,
+  // no error codes and no internals: nobody should have to read a stack trace,
+  // and the most important thing to say is that their documents are safe.
+  error: {
+    title: "Da ist etwas schiefgelaufen.",
+    lead: "Diese Seite konnte gerade nicht angezeigt werden. Ihre Angaben und Unterlagen sind sicher — es ist nichts verloren gegangen. Bitte versuchen Sie es in einem Moment noch einmal.",
+    contactLead: "Wenn es weiterhin nicht klappt, schreiben Sie uns:",
+  },
   auth: {
     signUpTitle: "Konto erstellen",
     signUpIntro:
@@ -130,6 +144,8 @@ export const de = {
     passwordRepeat: "Passwort wiederholen",
     submitSignUp: "Konto erstellen",
     submitSignIn: "Anmelden",
+    sendingSignUp: "Konto wird erstellt …",
+    sendingSignIn: "Anmeldung läuft …",
     haveAccount: "Sie haben schon ein Konto?",
     noAccount: "Noch kein Konto?",
     passwordHint: "Mindestens 8 Zeichen.",

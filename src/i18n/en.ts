@@ -39,12 +39,18 @@ export const en: Dictionary = {
     signIn: "Sign in",
     signUp: "Create an account",
     signOut: "Sign out",
+    signingOut: "Signing out …",
     intake: "Describe your case",
     home: "Home",
   },
   lang: {
     label: "Choose language",
     switchTo: "View this page in German",
+    switching: "Switching language …",
+  },
+  status: {
+    // Shown while a page that needs the server is still loading.
+    loading: "One moment please — the page is loading.",
   },
   hero: {
     eyebrow: "Help with applications, forms and appointments",
@@ -125,6 +131,14 @@ export const en: Dictionary = {
     title: "This page does not exist.",
     lead: "The address may have changed. You can go back to the home page, or send us your case directly.",
   },
+  // The screen a visitor sees when something in the site breaks. Plain language,
+  // no error codes and no internals — and the most important thing to say is
+  // that their documents are safe.
+  error: {
+    title: "Something went wrong.",
+    lead: "We could not show this page just now. Your details and your documents are safe — nothing has been lost. Please try again in a moment.",
+    contactLead: "If it still does not work, please write to us:",
+  },
   auth: {
     signUpTitle: "Create an account",
     signUpIntro:
@@ -137,6 +151,8 @@ export const en: Dictionary = {
     passwordRepeat: "Repeat password",
     submitSignUp: "Create an account",
     submitSignIn: "Sign in",
+    sendingSignUp: "Creating your account …",
+    sendingSignIn: "Signing in …",
     haveAccount: "Already have an account?",
     noAccount: "No account yet?",
     passwordHint: "At least 8 characters.",
