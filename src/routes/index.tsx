@@ -6,10 +6,10 @@ import { getDictionary } from "~/i18n";
 import { pageLocale } from "~/lib/page-locale";
 
 export const Route = createFileRoute("/")({
-  head: async () => {
+  head: async ({ loaderData, matches }) => {
     // The visitor's language, resolved so the server-rendered title is right
     // even before any JavaScript runs — see `src/lib/page-locale.ts`.
-    const t = getDictionary(await pageLocale());
+    const t = getDictionary(await pageLocale(loaderData?.locale, matches));
     return {
       meta: [
         { title: t.meta.homeTitle },

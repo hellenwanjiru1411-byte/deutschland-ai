@@ -10,11 +10,11 @@ import { pageLocale } from "~/lib/page-locale";
 import { signUp, type FieldErrors } from "~/server/fns";
 
 export const Route = createFileRoute("/registrieren")({
-  head: async () => {
+  head: async ({ loaderData, matches }) => {
     // The title in the visitor's language, in the server-rendered HTML: the
-    // language comes from the request, not from match data. See
-    // `src/lib/page-locale.ts`.
-    const t = getDictionary(await pageLocale());
+    // language is resolved from the request, not from data that may be missing.
+    // See `src/lib/page-locale.ts`.
+    const t = getDictionary(await pageLocale(loaderData?.locale, matches));
     return {
       meta: [
         { title: t.meta.signUpTitle },

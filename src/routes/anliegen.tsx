@@ -28,11 +28,11 @@ export const Route = createFileRoute("/anliegen")({
     if (!bootstrap.user) throw redirect({ to: "/anmelden" });
     return bootstrap;
   },
-  head: async ({ loaderData }) => {
+  head: async ({ loaderData, matches }) => {
     // The title in the visitor's language, in the server-rendered HTML. The
     // loader's own result carries the language when it is available and the
     // request does otherwise — see `src/lib/page-locale.ts`.
-    const t = getDictionary(await pageLocale(loaderData?.locale));
+    const t = getDictionary(await pageLocale(loaderData?.locale, matches));
     return {
       meta: [
         { title: t.meta.intakeTitle },

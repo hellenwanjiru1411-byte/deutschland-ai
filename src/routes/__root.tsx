@@ -26,12 +26,12 @@ export const Route = createRootRoute({
   // server function: it reads the language cookie and the session cookie and
   // returns only the name and email of the signed-in user — never a token.
   loader: async () => getBootstrap(),
-  head: async ({ loaderData }) => {
+  head: async ({ loaderData, matches }) => {
     // The title and description of the server-rendered document are built from
     // the language files. `pageLocale` resolves the visitor's language without
     // depending on match data that may not be there yet — see
     // `src/lib/page-locale.ts` — so the HTML is right with JavaScript off.
-    const t = getDictionary(await pageLocale(loaderData?.locale));
+    const t = getDictionary(await pageLocale(loaderData?.locale, matches));
     return {
       meta: [
         { charSet: "utf-8" },
