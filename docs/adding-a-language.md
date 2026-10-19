@@ -88,6 +88,10 @@ reads at a difficult moment:
   has just filled in, and has to explain what to do, not just what went wrong.
 - **The contact label** `footer.contactLabel` (it is the only contact route the
   site offers — no phone number, no postal address).
+- **The area-of-life labels** `areas.*` — these are the words a worried person
+  reads to see which area their case was filed under (see
+  `docs/areas-of-life.md`). Every area code must have a label in the new language;
+  the build fails if one is missing.
 - Navigation and language switch: `nav.*`, `lang.*`.
 - The marketing pages: `meta.*` (titles and description), `hero.*`, `panel.*`,
   `how.*`, `services.*`, `newcomers.*`, `free`, `booking.*`, `footer.pilot`,
@@ -187,8 +191,10 @@ checks:
 
 It also checks the registry itself — unique codes, a declared direction, a present
 `lang`/`label`/`name`, a present dictionary — and that `/` with no cookie serves
-the default language. A language added later is therefore tested automatically and
-cannot go live unchecked.
+the default language. It checks the area-of-life model too (every subject maps to
+a declared area, every area has a label in every language — see
+`docs/areas-of-life.md`). A language added later is therefore tested automatically
+and cannot go live unchecked.
 
 To look at a language by hand, use the language switcher (it stores the cookie
 `lang=<code>` and reloads), or ask the server directly:

@@ -19,8 +19,25 @@
  * Nothing here is authenticated and nothing writes to the database: the public
  * surface only. `/anliegen` is checked for the redirect a signed-out visitor
  * gets, which is all a public check can see.
+ *
+ * The area-of-life rules are checked here too, because they are a promise the
+ * product makes and they must break the build's gate rather than a code review:
+ * every subject maps to a declared area, every language names every area, the
+ * area guard really refuses to mix areas, and no file outside the access module
+ * assembles its own query against `requests` or `documents`. See
+ * `docs/areas-of-life.md`.
  */
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+
 import { LANGUAGES } from "../src/i18n/index.ts";
+import {
+  AREA_CODES,
+  SUBJECT_AREA,
+  groupByArea,
+  inAreaOnly,
+} from "../src/lib/areas.ts";
+import { SUBJECT_KEYS } from "../src/lib/constants.ts";
 
 const BASE = (
   process.env.SMOKE_BASE_URL ||
@@ -135,6 +152,122 @@ await step("language registry", async () => {
     "every language brings its own dictionary",
     halfTranslated.length === 0,
     halfTranslated.length > 0 ? `broken for ${halfTranslated.join(", ")}` : "all present",
+  );
+});
+
+/* ------------------------------------------------------- areas of life */
+
+await step("areas of life", async () => {
+  const unmapped = SUBJECT_KEYS.filter(
+    (key) => !AREA_CODES.includes(SUBJECT_AREA[key]),
+  );
+  expect(
+    "every subject maps to a declared area of life",
+    unmapped.length === 0,
+    unmapped.length > 0 ? `no area for ${unmapped.join(", ")}` : `${SUBJECT_KEYS.length} subjects → ${AREA_CODES.length} areas`,
+  );
+
+  const invented = Object.keys(SUBJECT_AREA).filter(
+    (key) => !SUBJECT_KEYS.includes(key),
+  );
+  expect(
+    "the mapping invents no subject of its own",
+    invented.length === 0,
+    invented.length > 0 ? `unknown ${invented.join(", ")}` : "only declared subjects",
+  );
+
+  for (const language of LANGUAGES) {
+    const missing = AREA_CODES.filter((area) => {
+      const label = language.dictionary.areas?.[area];
+      return typeof label !== "string" || label.trim().length === 0;
+    });
+    expect(
+      `every area of life has a ${language.code} label`,
+      missing.length === 0,
+      missing.length > 0 ? `missing ${missing.join(", ")}` : `${AREA_CODES.length} labels`,
+    );
+  }
+
+  // The guard itself: it keeps its own area, and it refuses a mixed set.
+  const residence = { area: "residence", id: "r1" };
+  const health = { area: "health_insurance", id: "h1" };
+  const kept = inAreaOnly("residence", [residence]);
+  expect(
+    "the area guard keeps rows of the requested area",
+    kept.length === 1 && kept[0].id === "r1",
+    "one residence row in, one out",
+  );
+
+  let refused = false;
+  try {
+    inAreaOnly("residence", [residence, health]);
+  } catch {
+    refused = true;
+  }
+  expect(
+    "the area guard refuses a result set that mixes areas",
+    refused,
+    "asking for residence with a health-insurance row throws",
+  );
+
+  const grouped = groupByArea([residence, health]);
+  const crossed = [...grouped].filter(([area, bucket]) =>
+    bucket.some((row) => row.area !== area),
+  );
+  expect(
+    "cases grouped by area never cross between areas",
+    crossed.length === 0 && grouped.size === 2,
+    [...grouped.keys()].join(", "),
+  );
+});
+
+/* ------------------------------------------------- one read path, enforced */
+
+await step("one read path", async () => {
+  const root = new URL("../", import.meta.url).pathname;
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(ts|tsx|mjs|js)$/.test(entry.name)) files.push(full);
+    }
+  };
+  walk(join(root, "src"));
+  walk(join(root, "scripts"));
+
+  // A read of a case or a document may only live in the access module. The
+  // schema module is allowed as well, because its migration has to read the
+  // rows it is filling in — and it is the file that creates the tables.
+  const READ = /\bfrom\s+(requests|documents)\b/;
+  const READ_ALLOWED = ["src/server/access.server.ts", "src/server/schema.server.ts"];
+  // A write may only live in the one write path (data.server.ts) and in the
+  // migration. No route and no component ever writes a case itself.
+  const WRITE = /\b(into|update)\s+(requests|documents)\b/i;
+  const WRITE_ALLOWED = ["src/server/data.server.ts", "src/server/schema.server.ts"];
+
+  const readOffenders = [];
+  const writeOffenders = [];
+  for (const file of files) {
+    const name = relative(root, file).split("\\").join("/");
+    const text = readFileSync(file, "utf8");
+    if (READ.test(text) && !READ_ALLOWED.includes(name)) readOffenders.push(name);
+    if (WRITE.test(text) && !WRITE_ALLOWED.includes(name)) writeOffenders.push(name);
+  }
+
+  expect(
+    "only the access module reads cases or documents",
+    readOffenders.length === 0,
+    readOffenders.length > 0
+      ? `also in ${readOffenders.join(", ")}`
+      : READ_ALLOWED.join(", "),
+  );
+  expect(
+    "only the write path writes cases or documents",
+    writeOffenders.length === 0,
+    writeOffenders.length > 0
+      ? `also in ${writeOffenders.join(", ")}`
+      : WRITE_ALLOWED.join(", "),
   );
 });
 

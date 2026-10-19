@@ -11,6 +11,8 @@
  *   - `docs/adding-a-language.md` is the full checklist, including what a native
  *     speaker has to sign off before the language goes live.
  */
+import type { AreaCode } from "~/lib/areas";
+
 export const de = {
   // The business name is the same in every language, but it still lives here so
   // that no page or component ever hardcodes it.
@@ -184,6 +186,10 @@ export const de = {
     sending: "Wird gesendet …",
     success:
       "Danke! Wir haben Ihr Anliegen erhalten und melden uns schnellstmöglich bei Ihnen.",
+    // Shown under the thank-you line, followed by the area of life the case was
+    // filed under (see `areas` below). The person picks a subject and never has to
+    // answer a second question — this line just tells them where the case landed.
+    filedUnder: "Ihr Anliegen ist diesem Bereich zugeordnet:",
     subjects: {
       anmeldung: "Anmeldung oder Ummeldung",
       aufenthalt_visa: "Aufenthalt und Visa",
@@ -201,6 +207,25 @@ export const de = {
     // because that is what people see on their official documents.
     states: {} as Record<string, string>,
   },
+  /*
+   * AREAS OF LIFE — the labels for the closed set of areas a case can belong to.
+   *
+   * The keys are stable internal codes (`src/lib/areas.ts`), never shown; these
+   * are the words a person reads. The type below says every area code must have a
+   * label here, so a new area without German copy is a build error. Nothing
+   * crosses between areas: a case is filed under exactly one of these.
+   */
+  areas: {
+    residence: "Aufenthalt und Einwanderung",
+    health_insurance: "Krankenversicherung",
+    taxes: "Steuern",
+    family: "Familie und Kindergeld",
+    housing: "Wohnen und Miete",
+    work: "Arbeit und Selbstständigkeit",
+    appointments: "Termine und Fristen",
+    legal: "Recht und Gericht",
+    other: "Sonstiges",
+  } satisfies Record<AreaCode, string>,
   errors: {
     required: "Bitte füllen Sie dieses Feld aus.",
     nameRequired: "Bitte geben Sie Ihren Namen ein.",

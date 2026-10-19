@@ -24,12 +24,14 @@ import { getCookie, setCookie } from "@tanstack/react-start/server";
 
 import siteConfig from "../../site.json";
 import { sql } from "~/db";
+import { areaForSubject, type AreaCode } from "~/lib/areas";
 import {
   MAX_FILE_BYTES,
   MAX_FILES,
   SESSION_COOKIE,
   SESSION_DAYS,
   SUBJECT_KEYS,
+  type SubjectKey,
 } from "~/lib/constants";
 import {
   DEFAULT_LOCALE,
@@ -91,65 +93,14 @@ export async function verifyPassword(
 
 /* ----------------------------------------------------------------- schema */
 
-let schemaReady: Promise<void> | null = null;
-
-/** Idempotent: safe to call before every query, runs once per server process. */
-export function ensureSchema(): Promise<void> {
-  if (!schemaReady) {
-    schemaReady = createTables().catch((error) => {
-      schemaReady = null;
-      throw error;
-    });
-  }
-  return schemaReady;
-}
-
-async function createTables(): Promise<void> {
-  const q = db();
-  await q`create table if not exists users (
-    id text primary key,
-    name text not null,
-    email text not null,
-    email_norm text not null,
-    password_hash text not null,
-    created_at timestamptz not null default now()
-  )`;
-  await q`create unique index if not exists users_email_norm_key on users (email_norm)`;
-  await q`create table if not exists sessions (
-    token_hash text primary key,
-    user_id text not null references users(id) on delete cascade,
-    created_at timestamptz not null default now(),
-    expires_at timestamptz not null
-  )`;
-  await q`create index if not exists sessions_user_id_idx on sessions (user_id)`;
-  await q`create table if not exists requests (
-    id text primary key,
-    user_id text not null references users(id) on delete cascade,
-    city text not null,
-    state text not null,
-    subject text not null,
-    message text not null,
-    phone text,
-    created_at timestamptz not null default now()
-  )`;
-  await q`create index if not exists requests_user_id_idx on requests (user_id)`;
-  await q`create table if not exists documents (
-    id text primary key,
-    request_id text not null references requests(id) on delete cascade,
-    filename text not null,
-    mime_type text not null,
-    content_base64 text not null,
-    size integer not null,
-    created_at timestamptz not null default now()
-  )`;
-  await q`create index if not exists documents_request_id_idx on documents (request_id)`;
-  await q`create table if not exists login_attempts (
-    email_norm text primary key,
-    failed_count integer not null default 0,
-    locked_until timestamptz,
-    updated_at timestamptz not null default now()
-  )`;
-}
+/*
+ * The tables and their migrations live in `./schema.server.ts` — one module, so
+ * the area rules the database enforces are in one place. Imported here because
+ * every function below calls it before its first query, and re-exported so the
+ * rest of the server code keeps its single entry point.
+ */
+import { ensureSchema } from "./schema.server";
+export { ensureSchema };
 
 /* ------------------------------------------------------------------ users */
 
@@ -311,25 +262,38 @@ export type IncomingRequest = {
   userId: string;
   city: string;
   state: string;
-  subject: string;
+  /** A subject key, already validated — the area is derived from it, never sent. */
+  subject: SubjectKey;
   message: string;
   phone: string | null;
   documents: IncomingDocument[];
 };
 
-export async function saveRequest(input: IncomingRequest): Promise<string> {
+/**
+ * THE WRITE PATH for a case. The only place a request or a document is created.
+ *
+ * The area of life is not part of the input: it is derived here, from the subject
+ * the person picked, through the one mapping in `src/lib/areas.ts`. Each document
+ * is stamped with the case's own area — the same value, in the same statement
+ * sequence — and the database refuses any document whose area differs from its
+ * case's (`documents_request_area_fkey`).
+ */
+export async function saveRequest(
+  input: IncomingRequest,
+): Promise<{ id: string; area: AreaCode }> {
   await ensureSchema();
   const q = db();
   const requestId = randomUUID();
-  await q`insert into requests (id, user_id, city, state, subject, message, phone)
+  const area = areaForSubject(input.subject);
+  await q`insert into requests (id, user_id, city, state, subject, area, message, phone)
           values (${requestId}, ${input.userId}, ${input.city}, ${input.state},
-                  ${input.subject}, ${input.message}, ${input.phone})`;
+                  ${input.subject}, ${area}, ${input.message}, ${input.phone})`;
   for (const doc of input.documents) {
-    await q`insert into documents (id, request_id, filename, mime_type, content_base64, size)
-            values (${randomUUID()}, ${requestId}, ${doc.filename}, ${doc.mimeType},
+    await q`insert into documents (id, request_id, area, filename, mime_type, content_base64, size)
+            values (${randomUUID()}, ${requestId}, ${area}, ${doc.filename}, ${doc.mimeType},
                     ${doc.contentBase64}, ${doc.size})`;
   }
-  return requestId;
+  return { id: requestId, area };
 }
 
 /* ------------------------------------------------------------ request glue */
