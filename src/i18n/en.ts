@@ -188,6 +188,9 @@ export const en: Dictionary = {
     sending: "Sending …",
     success:
       "Thank you! We have received your case and we will get back to you as soon as we can.",
+    // Shown under the thank-you line, followed by the area of life the case was
+    // filed under (see `areas` below).
+    filedUnder: "Your case has been filed under this area of life:",
     subjects: {
       anmeldung: "Registering or changing my address",
       aufenthalt_visa: "Residence and visas",
@@ -203,6 +206,20 @@ export const en: Dictionary = {
     },
     // Official German state names stay untranslated — see the German file.
     states: {},
+  },
+  // AREAS OF LIFE — the labels for the closed set of areas a case can belong to.
+  // The keys are stable internal codes (`src/lib/areas.ts`); these are the words
+  // a person reads. Every area code needs a label in every language.
+  areas: {
+    residence: "Residence and immigration",
+    health_insurance: "Health insurance",
+    taxes: "Taxes",
+    family: "Family and child benefit",
+    housing: "Housing and rent",
+    work: "Work and self-employment",
+    appointments: "Appointments and deadlines",
+    legal: "Legal and court",
+    other: "Other",
   },
   errors: {
     required: "Please fill in this field.",

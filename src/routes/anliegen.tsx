@@ -12,8 +12,10 @@ import {
   MIN_MESSAGE_LENGTH,
   STATES,
   SUBJECT_KEYS,
+  isSubjectKey,
 } from "~/lib/constants";
 import { pageLocale } from "~/lib/page-locale";
+import type { AreaCode } from "~/lib/areas";
 import {
   getBootstrap,
   submitIntake,
@@ -75,6 +77,7 @@ function IntakePage() {
   const [documents, setDocuments] = useState<DocumentPayload[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
+  const [storedArea, setStoredArea] = useState<AreaCode | null>(null);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -121,7 +124,7 @@ function IntakePage() {
     const local: FieldErrors = {};
     if (!city.trim()) local.city = t.errors.cityRequired;
     if (!STATES.includes(state)) local.state = t.errors.stateRequired;
-    if (!SUBJECT_KEYS.includes(subject)) local.subject = t.errors.subjectInvalid;
+    if (!isSubjectKey(subject)) local.subject = t.errors.subjectInvalid;
     if (message.trim().length < MIN_MESSAGE_LENGTH)
       local.message = t.errors.messageShort;
     if (!consent) local.consent = t.errors.consentRequired;
@@ -142,6 +145,7 @@ function IntakePage() {
         },
       });
       if (result.ok) {
+        setStoredArea(result.area);
         setDone(true);
         return;
       }
@@ -158,6 +162,18 @@ function IntakePage() {
     return (
       <section className="mx-auto w-full max-w-2xl px-4 py-16 sm:px-6 sm:py-24">
         <SuccessAlert message={t.intake.success} />
+        {/*
+          WHICH AREA OF LIFE the case was filed under. The area is derived from the
+          subject the person already picked, so this line only tells them where
+          their case landed — they never had to answer a second question. The code
+          is stable and internal; the label comes from the language files.
+        */}
+        {storedArea ? (
+          <p className="mt-4 text-sm leading-relaxed text-muted" data-area={storedArea}>
+            {t.intake.filedUnder}{" "}
+            <span className="font-semibold text-ink-soft">{t.areas[storedArea]}</span>
+          </p>
+        ) : null}
         <div className="mt-8 flex flex-wrap gap-3">
           <Link to="/" className="btn-secondary">
             {t.nav.home}

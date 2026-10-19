@@ -17,9 +17,10 @@ import {
   MIN_MESSAGE_LENGTH,
   MIN_PASSWORD_LENGTH,
   STATES,
-  SUBJECT_KEYS,
+  isSubjectKey,
 } from "~/lib/constants";
 import { getDictionary, type Locale } from "~/i18n";
+import type { AreaCode } from "~/lib/areas";
 
 export type Bootstrap = {
   locale: Locale;
@@ -32,6 +33,14 @@ export type FieldErrors = Record<string, string>;
 
 export type FormResult =
   | { ok: true }
+  | { ok: false; error?: string; fields: FieldErrors };
+
+/**
+ * A stored case answers with the area of life it was filed under — the stable
+ * code, not a translated label. The page looks the label up in its own language.
+ */
+export type IntakeResult =
+  | { ok: true; area: AreaCode }
   | { ok: false; error?: string; fields: FieldErrors };
 
 export type DocumentPayload = {
@@ -169,7 +178,7 @@ export const submitIntake = createServerFn({ method: "POST" })
       documents: DocumentPayload[];
     }) => input,
   )
-  .handler(async ({ data: input }): Promise<FormResult> => {
+  .handler(async ({ data: input }): Promise<IntakeResult> => {
     const server = await import("./data.server");
     const t = getDictionary(server.currentLocale());
     const fields: FieldErrors = {};
@@ -182,7 +191,7 @@ export const submitIntake = createServerFn({ method: "POST" })
 
     if (!city) fields.city = t.errors.cityRequired;
     if (!STATES.includes(state)) fields.state = t.errors.stateRequired;
-    if (!SUBJECT_KEYS.includes(subject)) fields.subject = t.errors.subjectInvalid;
+    if (!isSubjectKey(subject)) fields.subject = t.errors.subjectInvalid;
     if (message.length < MIN_MESSAGE_LENGTH)
       fields.message = t.errors.messageShort;
     if (input.consent !== true) fields.consent = t.errors.consentRequired;
@@ -211,8 +220,14 @@ export const submitIntake = createServerFn({ method: "POST" })
     const user = await server.currentUser();
     if (!user) return { ok: false, error: t.errors.notSignedIn, fields: {} };
 
+    // Checked above; repeated so the compiler knows `subject` is a subject key and
+    // the area of life can be derived from it without a cast.
+    if (!isSubjectKey(subject)) {
+      return { ok: false, fields: { subject: t.errors.subjectInvalid } };
+    }
+
     try {
-      await server.saveRequest({
+      const stored = await server.saveRequest({
         userId: user.id,
         city,
         state,
@@ -226,7 +241,7 @@ export const submitIntake = createServerFn({ method: "POST" })
           contentBase64: doc.contentBase64,
         })),
       });
-      return { ok: true };
+      return { ok: true, area: stored.area };
     } catch {
       return { ok: false, error: t.errors.dbUnavailable, fields: {} };
     }
