@@ -22,7 +22,6 @@ export const de = {
     mark: "A",
   },
   meta: {
-    siteTitle: "AIE Deutschland",
     homeTitle: "AIE Deutschland — Schluss mit Behördenfrust",
     homeDescription:
       "Wir kümmern uns um Anträge, Formulare und Termine bei Behörden in Deutschland. Sagen Sie uns, wo Sie feststecken.",
@@ -40,12 +39,11 @@ export const de = {
     signOut: "Abmelden",
     signingOut: "Wird abgemeldet …",
     intake: "Anliegen schildern",
-    dashboard: "Übersicht",
+    dashboard: "Überblick",
     home: "Startseite",
   },
   lang: {
     label: "Sprache wählen",
-    switchTo: "Auf Englisch ansehen",
     switching: "Sprache wird umgestellt …",
   },
   status: {
@@ -93,15 +91,17 @@ export const de = {
   },
   services: {
     title: "Was wir übernehmen",
-    intro: "Das sind die Fälle, die uns am häufigsten begegnen.",
+    intro: "Alltägliche Anliegen bei Behörden, die wir für Sie übernehmen.",
     items: [
       "Anmeldung und Ummeldung",
       "Anträge und Formulare bei Ämtern",
       "Termine bei Behörden vereinbaren",
       "Fristen im Blick behalten",
       "Wohnungsunterlagen und Wohnungsgeberbestätigung",
-      "Unterlagen prüfen und vervollständigen",
-      "Hilfe beim Finden der passenden Anwältin oder des passenden Anwalts",
+      "Unterlagen prüfen und Ihnen sagen, was noch fehlt",
+      // A line offering help finding a lawyer used to sit here. Legal referrals
+      // are one of the regulated activities the business plan names, so it stays
+      // out of customer copy until the legal check has cleared it.
     ],
   },
   newcomers: {
@@ -121,7 +121,6 @@ export const de = {
     disclaimer:
       "AIE Deutschland ist kein Anwaltsbüro und keine Behörde. Wir unterstützen bei Anträgen, Formularen und Terminen und leisten keine Rechtsberatung.",
     pilot: "Pilotbetrieb",
-    freeLine: "Aktuell kostenlos.",
     // The only contact route we offer. No phone number, no postal address.
     contactLabel: "Schreiben Sie uns",
     navLabel: "Fußzeile",
@@ -155,13 +154,11 @@ export const de = {
     haveAccount: "Sie haben schon ein Konto?",
     noAccount: "Noch kein Konto?",
     passwordHint: "Mindestens 8 Zeichen.",
-    existingSession: "Sie sind bereits angemeldet.",
     signedInAs: "Angemeldet als",
     // There is no email integration yet: we cannot send a reset link, so a
     // forgotten password has to be reset by hand.
     forgot:
       "Passwort vergessen? Schreiben Sie uns — wir setzen es für Sie zurück.",
-    signOutDone: "Sie sind abgemeldet.",
   },
   intake: {
     title: "Anliegen schildern",

@@ -23,13 +23,12 @@ export const en: Dictionary = {
     mark: "A",
   },
   meta: {
-    siteTitle: "AIE Deutschland",
     homeTitle: "AIE Deutschland — stop drowning in paperwork",
     homeDescription:
       "We take care of applications, forms and appointments with German authorities. Tell us where you are stuck.",
     signUpTitle: "Create an account — AIE Deutschland",
     signInTitle: "Sign in — AIE Deutschland",
-    intakeTitle: "Describe your case — AIE Deutschland",
+    intakeTitle: "Describe your request — AIE Deutschland",
     dashboardTitle: "Your overview — AIE Deutschland",
   },
   nav: {
@@ -40,13 +39,12 @@ export const en: Dictionary = {
     signUp: "Create an account",
     signOut: "Sign out",
     signingOut: "Signing out …",
-    intake: "Describe your case",
+    intake: "Describe your request",
     dashboard: "Overview",
     home: "Home",
   },
   lang: {
     label: "Choose language",
-    switchTo: "View this page in German",
     switching: "Switching language …",
   },
   status: {
@@ -58,11 +56,11 @@ export const en: Dictionary = {
     title: "Stop drowning in",
     titleAccent: "paperwork.",
     lead: "Tell us where you are stuck — we take care of the applications, the forms and the appointments. No waiting on hold, no bureaucratic German.",
-    ctaPrimary: "Describe your case",
+    ctaPrimary: "Describe your request",
     ctaSecondary: "Create an account",
   },
   panel: {
-    title: "Typical cases",
+    title: "Typical requests",
     intro:
       "You describe your situation in a few sentences. We take care of the rest.",
     chips: [
@@ -95,7 +93,7 @@ export const en: Dictionary = {
   },
   services: {
     title: "What we take care of",
-    intro: "These are the cases we see most often.",
+    intro: "Everyday matters with German authorities that we take on for you.",
     items: [
       "Registering or changing your address (Anmeldung, Ummeldung)",
       "Applications and forms at public offices",
@@ -103,7 +101,6 @@ export const en: Dictionary = {
       "Keeping an eye on your deadlines",
       "Housing documents and your landlord confirmation (Wohnungsgeberbestätigung)",
       "Checking your documents and telling you what is missing",
-      "Help finding the right lawyer",
     ],
   },
   newcomers: {
@@ -113,9 +110,9 @@ export const en: Dictionary = {
   free: "Currently free of charge — we are still running our pilot.",
   booking: {
     title: "Book an appointment",
-    body: "Would you rather talk it through? Book an appointment. You can also send us your case right here.",
+    body: "Would you rather talk it through? Book an appointment. You can also send us your request right here.",
     cta: "Book an appointment",
-    note: "You can send us your case here, or book an appointment.",
+    note: "You can send us your request here, or book an appointment.",
   },
   footer: {
     // LEGAL DISCLAIMER — a native speaker must check this wording in any new
@@ -123,14 +120,13 @@ export const en: Dictionary = {
     disclaimer:
       "AIE Deutschland is not a law firm and not a government office. We help with applications, forms and appointments, and we do not provide legal advice.",
     pilot: "Pilot",
-    freeLine: "Currently free of charge.",
     // The only contact route we offer. No phone number, no postal address.
     contactLabel: "Email us",
     navLabel: "Footer",
   },
   notFound: {
     title: "This page does not exist.",
-    lead: "The address may have changed. You can go back to the home page, or send us your case directly.",
+    lead: "The address may have changed. You can go back to the home page, or send us your request directly.",
   },
   // The screen a visitor sees when something in the site breaks. Plain language,
   // no error codes and no internals — and the most important thing to say is
@@ -145,7 +141,7 @@ export const en: Dictionary = {
     signUpIntro:
       "An account of your own keeps your documents visible only to you and to us.",
     signInTitle: "Sign in",
-    signInIntro: "Sign in to describe your case.",
+    signInIntro: "Sign in to describe your request.",
     name: "Name",
     email: "Email address",
     password: "Password",
@@ -157,15 +153,13 @@ export const en: Dictionary = {
     haveAccount: "Already have an account?",
     noAccount: "No account yet?",
     passwordHint: "At least 8 characters.",
-    existingSession: "You are already signed in.",
     signedInAs: "Signed in as",
     // There is no email integration yet: we cannot send a reset link, so a
     // forgotten password has to be reset by hand.
     forgot: "Forgot your password? Write to us — we will reset it for you.",
-    signOutDone: "You are signed out.",
   },
   intake: {
-    title: "Describe your case",
+    title: "Describe your request",
     intro:
       "The clearer we understand your situation, the faster we can deal with it.",
     name: "Name",
@@ -176,7 +170,7 @@ export const en: Dictionary = {
     statePick: "Please choose",
     subject: "What is it about?",
     phone: "Phone (optional)",
-    message: "Briefly describe your case",
+    message: "Briefly describe your request",
     messageHint: "At least 20 characters.",
     files: "Upload documents (optional)",
     filesHint: "PDF, JPG or PNG. Up to 2 files, max. 2 MB each.",
@@ -185,14 +179,14 @@ export const en: Dictionary = {
     // CONSENT TEXT — a native speaker must check this wording in any new
     // language before it goes live. Never machine-translate it.
     consent:
-      "I agree that AIE Deutschland may process my details and documents confidentially in order to handle my case. I can ask for my data to be deleted at any time.",
-    submit: "Send my case",
+      "I agree that AIE Deutschland may process my details and documents confidentially in order to handle my request. I can ask for my data to be deleted at any time.",
+    submit: "Send my request",
     sending: "Sending …",
     success:
-      "Thank you! We have received your case and we will get back to you as soon as we can.",
-    // Shown under the thank-you line, followed by the area of life the case was
+      "Thank you! We have received your request and we will get back to you as soon as we can.",
+    // Shown under the thank-you line, followed by the area of life the request was
     // filed under (see `areas` below).
-    filedUnder: "Your case has been filed under this area of life:",
+    filedUnder: "Your request has been filed under this area of life:",
     subjects: {
       anmeldung: "Registering or changing my address",
       aufenthalt_visa: "Residence and visas",
@@ -209,7 +203,7 @@ export const en: Dictionary = {
     // Official German state names stay untranslated — see the German file.
     states: {},
   },
-  // AREAS OF LIFE — the labels for the closed set of areas a case can belong to.
+  // AREAS OF LIFE — the labels for the closed set of areas a request can belong to.
   // The keys are stable internal codes (`src/lib/areas.ts`); these are the words
   // a person reads. Every area code needs a label in every language.
   areas: {
@@ -228,30 +222,33 @@ export const en: Dictionary = {
   // works while it does not.
   dashboard: {
     title: "Your overview",
-    lead: "Here you see your cases — sorted by area of life — and what we take off your hands. Every task has two routes: the app with AI, or a person who does it with you.",
+    lead: "Here you see your requests — sorted by area of life — and what we take off your hands. Every task has two routes: the app with AI, or a person who does it with you.",
     honestyTitle: "What works today — and what does not",
     honesty:
-      "No AI is connected yet. The app cannot explain a letter, recognise a deadline or translate anything. The human route does work: you describe your case and we take care of it — during the pilot that is us ourselves.",
+      "No AI is connected yet. The app cannot explain a letter, recognise a deadline or translate anything. The human route does work: you describe your request and we take care of it — during the pilot that is us ourselves.",
     routes: {
       aiLabel: "The app does this with AI",
       aiStatus: "Not available yet",
       humanLabel: "A person does this with you",
       humanStatus: "Available today",
-      humanCta: "Describe your case",
+      humanCta: "Describe your request",
     },
     capabilitiesTitle: "What we take on",
     capabilitiesIntro:
       "Seven tasks, each with both routes. The order shows what we are building first.",
+    // The key is `cases` in every language (the German file owns the shape).
+    // The words a person reads say "request": in English "case" collides with a
+    // court case, which is one of the areas of life.
     cases: {
-      title: "Your cases",
+      title: "Your requests",
       intro:
-        "Your own cases, sorted by area of life. What belongs to one area is not visible in another.",
+        "Your own requests, sorted by area of life. What belongs to one area is not visible in another.",
       receivedLabel: "Received",
       documentsLabel: "Documents",
-      emptyTitle: "You have not described a case to us yet.",
+      emptyTitle: "You have not described a request to us yet.",
       emptyLead:
         "As soon as you describe one, it appears here — sorted into the area of life it belongs to.",
-      emptyCta: "Describe your case",
+      emptyCta: "Describe your request",
     },
   },
   // THE SEVEN CAPABILITIES — one card each, in the business plan's order. See
@@ -262,7 +259,7 @@ export const en: Dictionary = {
       body: "An official letter in plain language: who wrote it, what it is about, which deadline applies and what you have to do.",
       aiNote: "The app cannot explain a letter yet — the AI model is not connected.",
       humanNote:
-        "Upload the letter with your case. We explain what it means and what you have to do.",
+        "Upload the letter with your request. We explain what it means and what you have to do.",
     },
     track_deadlines: {
       title: "Keep track of deadlines",
@@ -271,14 +268,14 @@ export const en: Dictionary = {
       // No reminder channel exists yet (no e-mail, the calendar comes in the
       // next stage), so this line must not promise to get in touch later.
       humanNote:
-        "Tell us the deadline with your case. We tell you what to do so it is not missed.",
+        "Tell us the deadline with your request. We tell you what to do so it is not missed.",
     },
     organise_paperwork: {
       title: "Organise your paperwork",
-      body: "All the documents for a case in one place — findable later instead of lost in a folder.",
+      body: "All the documents for a request in one place — findable later instead of lost in a folder.",
       aiNote: "The app does not sort your documents by itself yet.",
       humanNote:
-        "Upload your documents with your case. We check them and tell you what is still missing.",
+        "Upload your documents with your request. We check them and tell you what is still missing.",
     },
     find_authority: {
       title: "Find the right office",
@@ -325,15 +322,15 @@ export const en: Dictionary = {
     notSignedIn: "Please sign in first.",
     cityRequired: "Please enter your city or municipality.",
     stateRequired: "Please choose your federal state.",
-    subjectInvalid: "Please choose what your case is about.",
-    messageShort: "Please describe your case in at least 20 characters.",
+    subjectInvalid: "Please choose what your request is about.",
+    messageShort: "Please describe your request in at least 20 characters.",
     consentRequired: "Please agree to us processing your details.",
     fileType: "Only PDF, JPG and PNG files. Please upload the file again.",
     fileTooLarge: "This file is too large. Max. 2 MB per file.",
     filesTooMany: "Please upload no more than 2 files.",
     filesTooBigAll: "Your files are too large together. Please upload fewer.",
     dbUnavailable:
-      "We cannot save your case right now. Please try again in a few minutes.",
+      "We cannot save your request right now. Please try again in a few minutes.",
     generic: "Something went wrong. Please try again.",
   },
 };

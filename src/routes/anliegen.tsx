@@ -66,7 +66,7 @@ function readAsBase64(file: File): Promise<string> {
 
 function IntakePage() {
   const t = useT();
-  const { user } = Route.useLoaderData();
+  const { user, bookingUrl } = Route.useLoaderData();
 
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -196,7 +196,14 @@ function IntakePage() {
         {t.intake.title}
       </h1>
       <p className="mt-4 text-base leading-relaxed text-muted">{t.intake.intro}</p>
-      <p className="mt-3 text-sm leading-relaxed text-muted">{t.booking.note}</p>
+      {/*
+        Only shown when an appointment link actually exists. Without one this line
+        promised something the app cannot do — and once the app has its own
+        calendar, the honest version of this sentence will come from there.
+      */}
+      {bookingUrl ? (
+        <p className="mt-3 text-sm leading-relaxed text-muted">{t.booking.note}</p>
+      ) : null}
 
       <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-6">
         <ErrorAlert message={failure} />
