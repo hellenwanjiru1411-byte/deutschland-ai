@@ -12,6 +12,7 @@
  *     speaker has to sign off before the language goes live.
  */
 import type { AreaCode } from "~/lib/areas";
+import type { CapabilityCode, CapabilityCopy } from "~/lib/capabilities";
 
 export const de = {
   // The business name is the same in every language, but it still lives here so
@@ -28,6 +29,7 @@ export const de = {
     signUpTitle: "Konto erstellen — AIE Deutschland",
     signInTitle: "Anmelden — AIE Deutschland",
     intakeTitle: "Anliegen schildern — AIE Deutschland",
+    dashboardTitle: "Ihr Überblick — AIE Deutschland",
   },
   nav: {
     label: "Navigation",
@@ -38,6 +40,7 @@ export const de = {
     signOut: "Abmelden",
     signingOut: "Wird abgemeldet …",
     intake: "Anliegen schildern",
+    dashboard: "Übersicht",
     home: "Startseite",
   },
   lang: {
@@ -226,6 +229,116 @@ export const de = {
     legal: "Recht und Gericht",
     other: "Sonstiges",
   } satisfies Record<AreaCode, string>,
+  /*
+   * THE DASHBOARD — the page a signed-in person lands on.
+   *
+   * Two rules are enforced here, not just written down (the smoke test checks
+   * both): every card shows BOTH routes with labels that cannot be mistaken for
+   * each other, and nothing on the page claims that a capability works. The AI
+   * route says it is not available yet on every card until a model is really
+   * connected — see `src/lib/capabilities.ts`.
+   */
+  dashboard: {
+    title: "Ihr Überblick",
+    lead: "Hier sehen Sie Ihre Anliegen — nach Bereich sortiert — und was wir für Sie übernehmen. Jede Aufgabe hat zwei Wege: die App mit KI oder ein Mensch, der sie mit Ihnen erledigt.",
+    honestyTitle: "Was heute schon geht — und was noch nicht",
+    honesty:
+      "Eine KI ist noch nicht angebunden. Die App kann noch keinen Brief erklären, keine Frist erkennen und nichts übersetzen. Der menschliche Weg funktioniert dagegen schon: Sie schildern uns Ihr Anliegen, und wir kümmern uns darum — im Pilotbetrieb sitzen wir selbst daran.",
+    routes: {
+      // The two route labels. They must stay clearly different words: nobody
+      // should have to guess whether a machine or a person is dealing with their
+      // paperwork. The smoke test fails if they become the same sentence.
+      aiLabel: "Die App erledigt das mit KI",
+      aiStatus: "Noch nicht verfügbar",
+      humanLabel: "Ein Mensch erledigt das mit Ihnen",
+      humanStatus: "Heute verfügbar",
+      humanCta: "Anliegen schildern",
+    },
+    capabilitiesTitle: "Was wir übernehmen",
+    capabilitiesIntro:
+      "Sieben Aufgaben, jede mit beiden Wegen. Die Reihenfolge zeigt, was wir zuerst bauen.",
+    cases: {
+      title: "Ihre Anliegen",
+      intro:
+        "Ihre eigenen Anliegen, nach Bereich sortiert. Was in einen Bereich gehört, ist in keinem anderen sichtbar.",
+      receivedLabel: "Eingegangen",
+      documentsLabel: "Unterlagen",
+      emptyTitle: "Sie haben uns noch kein Anliegen geschildert.",
+      emptyLead:
+        "Sobald Sie uns eines schildern, steht es hier — sortiert nach dem Bereich, zu dem es gehört.",
+      emptyCta: "Anliegen schildern",
+    },
+  },
+  /*
+   * THE SEVEN CAPABILITIES — the cards on the dashboard, in the business plan's
+   * order (`CAPABILITY_CODES` in `src/lib/capabilities.ts`).
+   *
+   * `satisfies Record<CapabilityCode, CapabilityCopy>` is the guarantee: a
+   * capability without German copy is a build error, and every other language has
+   * to match this shape or the build fails too.
+   *
+   * `body` describes the capability — it must not claim it works. `aiNote` says
+   * plainly what the app cannot do yet, per capability. `humanNote` says what the
+   * human route does today: during the pilot the human is the team itself, so it
+   * may promise help we really give — never legal advice, and never a certified
+   * translation.
+   */
+  capabilities: {
+    understand_letter: {
+      title: "Brief verstehen",
+      body: "Ein Behördenbrief in einfacher Sprache: wer schreibt, worum es geht, welche Frist gilt und was Sie tun müssen.",
+      aiNote: "Die App kann noch keinen Brief erklären — dafür fehlt das KI-Modell.",
+      humanNote:
+        "Laden Sie den Brief beim Anliegen hoch. Wir erklären Ihnen, was er bedeutet und was zu tun ist.",
+    },
+    track_deadlines: {
+      title: "Fristen im Blick behalten",
+      body: "Fristen aus Ihren Briefen an einer Stelle gesammelt, damit keine davon untergeht.",
+      aiNote: "Die App erkennt noch keine Fristen in Briefen.",
+      // No reminder channel exists yet (no e-mail, the calendar comes in the
+      // next stage), so this line must not promise to get in touch later.
+      humanNote:
+        "Nennen Sie uns die Frist mit Ihrem Anliegen. Wir sagen Ihnen, was zu tun ist, damit sie nicht versäumt wird.",
+    },
+    organise_paperwork: {
+      title: "Unterlagen ordnen",
+      body: "Alle Dokumente zu einem Anliegen an einer Stelle — später auffindbar statt im Ordner verloren.",
+      aiNote: "Die App sortiert Ihre Unterlagen noch nicht selbst.",
+      humanNote:
+        "Laden Sie Ihre Unterlagen beim Anliegen hoch. Wir prüfen sie und sagen Ihnen, was noch fehlt.",
+    },
+    find_authority: {
+      title: "Die richtige Stelle finden",
+      body: "Sie schildern das Problem und erfahren, welche Behörde oder Stelle zuständig ist.",
+      aiNote: "Die App schlägt Ihnen noch keine Behörde vor.",
+      humanNote:
+        "Schildern Sie uns, worum es geht. Wir sagen Ihnen, an welche Stelle Sie sich wenden können.",
+    },
+    manage_appointments: {
+      title: "Termine verwalten",
+      body: "Termine bei Behörden und die Fristen aus Ihren Briefen an einer Stelle in der App.",
+      aiNote:
+        "Der Kalender in der App ist noch nicht gebaut — Termine und Erinnerungen gibt es hier noch nicht.",
+      // We cannot book anything on someone's behalf, so this says what we really
+      // do: help them get the appointment.
+      humanNote:
+        "Schildern Sie uns, welchen Termin Sie brauchen. Wir sagen Ihnen, wie Sie ihn bekommen, und unterstützen Sie dabei.",
+    },
+    translate_documents: {
+      title: "Dokumente übersetzen",
+      body: "Deutsches Behördendeutsch in eine Sprache, die Sie wirklich lesen.",
+      aiNote: "Die App übersetzt noch keine Dokumente.",
+      humanNote:
+        "Schildern Sie uns, welche Sprache Sie brauchen. Wir erklären Ihnen, was im Dokument steht — eine beglaubigte Übersetzung ist das nicht.",
+    },
+    access_support: {
+      title: "Weitere Hilfe finden",
+      body: "Wo Sie über uns hinaus Unterstützung bekommen — Beratungsstellen und Anlaufpunkte.",
+      aiNote: "Die App zeigt Ihnen noch keine Beratungsstellen.",
+      humanNote:
+        "Schildern Sie uns Ihre Situation. Wir suchen mit Ihnen, wo Sie weiter Unterstützung bekommen.",
+    },
+  } satisfies Record<CapabilityCode, CapabilityCopy>,
   errors: {
     required: "Bitte füllen Sie dieses Feld aus.",
     nameRequired: "Bitte geben Sie Ihren Namen ein.",

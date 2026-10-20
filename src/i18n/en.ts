@@ -30,6 +30,7 @@ export const en: Dictionary = {
     signUpTitle: "Create an account — AIE Deutschland",
     signInTitle: "Sign in — AIE Deutschland",
     intakeTitle: "Describe your case — AIE Deutschland",
+    dashboardTitle: "Your overview — AIE Deutschland",
   },
   nav: {
     label: "Navigation",
@@ -40,6 +41,7 @@ export const en: Dictionary = {
     signOut: "Sign out",
     signingOut: "Signing out …",
     intake: "Describe your case",
+    dashboard: "Overview",
     home: "Home",
   },
   lang: {
@@ -220,6 +222,95 @@ export const en: Dictionary = {
     appointments: "Appointments and deadlines",
     legal: "Legal and court",
     other: "Other",
+  },
+  // THE DASHBOARD — see the German file for the two rules these strings have to
+  // keep: both routes labelled unmistakably, and nothing claiming a capability
+  // works while it does not.
+  dashboard: {
+    title: "Your overview",
+    lead: "Here you see your cases — sorted by area of life — and what we take off your hands. Every task has two routes: the app with AI, or a person who does it with you.",
+    honestyTitle: "What works today — and what does not",
+    honesty:
+      "No AI is connected yet. The app cannot explain a letter, recognise a deadline or translate anything. The human route does work: you describe your case and we take care of it — during the pilot that is us ourselves.",
+    routes: {
+      aiLabel: "The app does this with AI",
+      aiStatus: "Not available yet",
+      humanLabel: "A person does this with you",
+      humanStatus: "Available today",
+      humanCta: "Describe your case",
+    },
+    capabilitiesTitle: "What we take on",
+    capabilitiesIntro:
+      "Seven tasks, each with both routes. The order shows what we are building first.",
+    cases: {
+      title: "Your cases",
+      intro:
+        "Your own cases, sorted by area of life. What belongs to one area is not visible in another.",
+      receivedLabel: "Received",
+      documentsLabel: "Documents",
+      emptyTitle: "You have not described a case to us yet.",
+      emptyLead:
+        "As soon as you describe one, it appears here — sorted into the area of life it belongs to.",
+      emptyCta: "Describe your case",
+    },
+  },
+  // THE SEVEN CAPABILITIES — one card each, in the business plan's order. See
+  // the German file for what `body`, `aiNote` and `humanNote` may and may not say.
+  capabilities: {
+    understand_letter: {
+      title: "Understand a letter",
+      body: "An official letter in plain language: who wrote it, what it is about, which deadline applies and what you have to do.",
+      aiNote: "The app cannot explain a letter yet — the AI model is not connected.",
+      humanNote:
+        "Upload the letter with your case. We explain what it means and what you have to do.",
+    },
+    track_deadlines: {
+      title: "Keep track of deadlines",
+      body: "The deadlines from your letters collected in one place, so none of them gets lost.",
+      aiNote: "The app does not recognise deadlines in letters yet.",
+      // No reminder channel exists yet (no e-mail, the calendar comes in the
+      // next stage), so this line must not promise to get in touch later.
+      humanNote:
+        "Tell us the deadline with your case. We tell you what to do so it is not missed.",
+    },
+    organise_paperwork: {
+      title: "Organise your paperwork",
+      body: "All the documents for a case in one place — findable later instead of lost in a folder.",
+      aiNote: "The app does not sort your documents by itself yet.",
+      humanNote:
+        "Upload your documents with your case. We check them and tell you what is still missing.",
+    },
+    find_authority: {
+      title: "Find the right office",
+      body: "You describe the problem and learn which office or authority is responsible.",
+      aiNote: "The app does not suggest an office to you yet.",
+      humanNote:
+        "Tell us what it is about. We tell you which office you can turn to.",
+    },
+    manage_appointments: {
+      title: "Manage appointments",
+      body: "Appointments with authorities and the deadlines from your letters in one place in the app.",
+      aiNote:
+        "The calendar in the app is not built yet — there are no appointments or reminders here so far.",
+      // We cannot book anything on someone's behalf, so this says what we really
+      // do: help them get the appointment.
+      humanNote:
+        "Tell us which appointment you need. We tell you how to get it — and help you along the way.",
+    },
+    translate_documents: {
+      title: "Translate documents",
+      body: "German official language into a language you really read.",
+      aiNote: "The app does not translate documents yet.",
+      humanNote:
+        "Tell us which language you need. We explain what the document says — this is not a certified translation.",
+    },
+    access_support: {
+      title: "Find further support",
+      body: "Where to get help beyond us — advice centres and places to turn.",
+      aiNote: "The app does not show you any advice centres yet.",
+      humanNote:
+        "Tell us your situation. We look with you for where you can get further support.",
+    },
   },
   errors: {
     required: "Please fill in this field.",

@@ -1,0 +1,26 @@
+{
+  // Type checking for the app itself — `bun run typecheck`, and part of
+  // `bun run build`.
+  //
+  // WHY A SEPARATE CONFIG. The base `tsconfig.json` includes `**/*.ts`, which
+  // pulls in two files that are not app code and cannot be typed without adding
+  // a whole runtime's definitions:
+  //   - `serve.ts`, the Bun entry point of the production server (needs Bun's
+  //     own types, which this project does not install), and
+  //   - `vite.config.ts` / `vercel-entry.ts`, the build configuration.
+  // This config checks `src/**` — every route, component, language file and
+  // server module — and nothing is excluded inside `src`. No strictness flag is
+  // relaxed: the options below are the base config's, plus the Node types the
+  // server code legitimately uses (`process`, `Buffer`, `node:crypto`), which
+  // the base config leaves out.
+  //
+  // WHAT IT GUARANTEES: a language file that is missing a label for an area of
+  // life or a capability does not compile. That is what makes a missing label a
+  // build error rather than a silent fallback — see `src/lib/areas.ts` and
+  // `src/lib/capabilities.ts`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
