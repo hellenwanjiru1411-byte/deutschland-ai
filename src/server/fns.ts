@@ -71,6 +71,78 @@ export const getPageLocale = createServerFn({ method: "GET" }).handler(
   },
 );
 
+/* ------------------------------------------------------------------ dashboard */
+
+/** One case as the dashboard lists it: enough to recognise it, nothing more. */
+export type DashboardCase = {
+  id: string;
+  subject: string;
+  /** The area of life it belongs to. Always the area whose section it is in. */
+  area: AreaCode;
+  createdAt: string;
+  documentCount: number;
+};
+
+/** One area of life with the viewer's cases in it. Never mixed with another area. */
+export type DashboardArea = {
+  area: AreaCode;
+  cases: DashboardCase[];
+};
+
+export type DashboardData = {
+  locale: Locale;
+  user: { name: string; email: string } | null;
+  /** One entry per area of life that actually has cases, in product order. */
+  areas: DashboardArea[];
+  /** How many cases in total — the honest "do I have anything here" number. */
+  caseCount: number;
+};
+
+/**
+ * Everything the dashboard shows, in the visitor's language.
+ *
+ * The cases come from `src/server/access.server.ts` and from nowhere else: that
+ * module requires an area of life for every read and hands the cases back
+ * already separated, so this page cannot end up showing a mixed list. No route
+ * or component queries `requests` or `documents` itself — the smoke test fails
+ * the build if one starts to.
+ *
+ * A database failure is not caught here on purpose: the page's own error screen
+ * then says plainly that it could not be shown, instead of an empty dashboard
+ * pretending the person has no cases.
+ */
+export const getDashboard = createServerFn({ method: "GET" }).handler(
+  async (): Promise<DashboardData> => {
+    const server = await import("./data.server");
+    const locale = server.currentLocale();
+    const user = await server.currentUser();
+    if (!user) return { locale, user: null, areas: [], caseCount: 0 };
+
+    const access = await import("./access.server");
+    const byArea = await access.listCasesByArea(access.viewerForUser(user));
+
+    // A Map keeps one bucket per area, in the order `AREA_CODES` declares, so the
+    // sections on the page are in a stable product order and never interleaved.
+    const areas: DashboardArea[] = [...byArea].map(([area, cases]) => ({
+      area,
+      cases: cases.map((item) => ({
+        id: item.id,
+        subject: item.subject,
+        area: item.area,
+        createdAt: item.createdAt,
+        documentCount: item.documentCount,
+      })),
+    }));
+
+    return {
+      locale,
+      user: { name: user.name, email: user.email },
+      areas,
+      caseCount: areas.reduce((sum, group) => sum + group.cases.length, 0),
+    };
+  },
+);
+
 export const signUp = createServerFn({ method: "POST" })
   .validator(
     (input: { name: string; email: string; password: string; confirm: string }) =>

@@ -229,6 +229,16 @@ export function Header() {
           <LanguageSwitcher />
           {user ? (
             <>
+              {/*
+                Signed in, the person lands on the dashboard after signing in —
+                this link is how they get back to it from any other page.
+              */}
+              <Link
+                to="/dashboard"
+                className="inline-flex min-h-11 items-center px-1.5 text-sm font-semibold text-ink-soft transition hover:text-brand"
+              >
+                {t.nav.dashboard}
+              </Link>
               <Link
                 to="/anliegen"
                 className="btn-primary px-3.5 text-[13px] sm:px-5 sm:text-sm"

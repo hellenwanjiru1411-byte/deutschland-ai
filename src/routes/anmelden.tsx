@@ -9,11 +9,13 @@ import { pageLocale } from "~/lib/page-locale";
 import { signIn, type FieldErrors } from "~/server/fns";
 
 export const Route = createFileRoute("/anmelden")({
-  head: async ({ loaderData, matches }) => {
+  // This route has no loader, so there is no loader data to read a language
+  // from: the language comes from the request — see `src/lib/page-locale.ts`.
+  head: async ({ matches }) => {
     // The title in the visitor's language, in the server-rendered HTML: the
     // language is resolved from the request, not from data that may be missing.
     // See `src/lib/page-locale.ts`.
-    const t = getDictionary(await pageLocale(loaderData?.locale, matches));
+    const t = getDictionary(await pageLocale(undefined, matches));
     return {
       meta: [
         { title: t.meta.signInTitle },
@@ -47,7 +49,7 @@ function SignInPage() {
     try {
       const result = await signIn({ data: values });
       if (result.ok) {
-        window.location.href = "/anliegen";
+        window.location.href = "/dashboard";
         return;
       }
       setErrors(result.fields);

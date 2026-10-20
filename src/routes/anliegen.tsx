@@ -175,6 +175,10 @@ function IntakePage() {
           </p>
         ) : null}
         <div className="mt-8 flex flex-wrap gap-3">
+          {/* Straight to the overview, where the new case is now listed. */}
+          <Link to="/dashboard" className="btn-primary">
+            {t.nav.dashboard}
+          </Link>
           <Link to="/" className="btn-secondary">
             {t.nav.home}
           </Link>

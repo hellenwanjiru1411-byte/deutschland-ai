@@ -38,6 +38,7 @@ import {
   inAreaOnly,
 } from "../src/lib/areas.ts";
 import { SUBJECT_KEYS } from "../src/lib/constants.ts";
+import { CAPABILITY_CODES } from "../src/lib/capabilities.ts";
 
 const BASE = (
   process.env.SMOKE_BASE_URL ||
@@ -221,6 +222,120 @@ await step("areas of life", async () => {
   );
 });
 
+/* ------------------------------------------------------------ capabilities */
+
+await step("capabilities", async () => {
+  // The product order from the business plan. Written out here on purpose: the
+  // order is a decision, not an implementation detail, so moving or dropping a
+  // card has to fail a check rather than quietly reorder the dashboard.
+  const PRODUCT_ORDER = [
+    "understand_letter", // 1. understand an official letter
+    "track_deadlines", // 2. track deadlines
+    "organise_paperwork", // 3. organise paperwork
+    "find_authority", // 4. find the right authority
+    "manage_appointments", // 5. manage appointments
+    "translate_documents", // 6. translate documents
+    "access_support", // 7. access support services
+  ];
+  expect(
+    "the capabilities are in the business plan's order",
+    CAPABILITY_CODES.join(",") === PRODUCT_ORDER.join(","),
+    CAPABILITY_CODES.join(", "),
+  );
+
+  for (const language of LANGUAGES) {
+    const { code, dictionary } = language;
+    const COPY_FIELDS = ["title", "body", "aiNote", "humanNote"];
+
+    // A capability with no copy in a language must fail the build, not render an
+    // empty card — the same rule the areas of life follow.
+    const missing = CAPABILITY_CODES.filter((capability) => {
+      const copy = dictionary.capabilities?.[capability];
+      return (
+        !copy ||
+        !COPY_FIELDS.every(
+          (field) => typeof copy[field] === "string" && copy[field].trim().length > 0,
+        )
+      );
+    });
+    expect(
+      `every capability has a ${code} label`,
+      missing.length === 0,
+      missing.length > 0
+        ? `missing ${missing.join(", ")}`
+        : `${CAPABILITY_CODES.length} labels`,
+    );
+
+    // The other direction: a language file may not invent a capability of its
+    // own, or a card could exist in one language and not in another.
+    const invented = Object.keys(dictionary.capabilities ?? {}).filter(
+      (capability) => !CAPABILITY_CODES.includes(capability),
+    );
+    expect(
+      `the ${code} language file invents no capability of its own`,
+      invented.length === 0,
+      invented.length > 0
+        ? `unknown ${invented.join(", ")}`
+        : "only declared capabilities",
+    );
+
+    // BOTH routes are labelled in every language, and the two labels are not the
+    // same words: nobody should have to guess whether a machine or a person is
+    // dealing with their paperwork.
+    const routes = dictionary.dashboard?.routes ?? {};
+    const ROUTE_KEYS = ["aiLabel", "aiStatus", "humanLabel", "humanStatus", "humanCta"];
+    const unlabelled = ROUTE_KEYS.filter(
+      (key) => typeof routes[key] !== "string" || routes[key].trim().length === 0,
+    );
+    expect(
+      `both routes are labelled in ${code}`,
+      unlabelled.length === 0,
+      unlabelled.length > 0 ? `missing ${unlabelled.join(", ")}` : "AI route and human route",
+    );
+    expect(
+      `the ${code} route labels cannot be mistaken for each other`,
+      routes.aiLabel !== routes.humanLabel && routes.aiLabel !== routes.humanCta,
+      `"${routes.aiLabel}" vs "${routes.humanLabel}"`,
+    );
+  }
+});
+
+/* ------------------------------------------- the dashboard mirrors for RTL */
+
+await step("dashboard, right to left", async () => {
+  const root = new URL("../", import.meta.url).pathname;
+  // Arabic mirrors the whole layout, so the dashboard and its cards may only use
+  // logical utilities (`ms-`, `pe-`, `text-start`, …). A physical one would stay
+  // on the left when the page turns around — see `src/routes/dashboard.tsx`.
+  const FILES = ["src/routes/dashboard.tsx", "src/components/capabilities.tsx"];
+  const PHYSICAL = [
+    "ml-",
+    "mr-",
+    "pl-",
+    "pr-",
+    "text-left",
+    "text-right",
+    "border-l-",
+    "border-r-",
+    "rounded-l-",
+    "rounded-r-",
+    "float-left",
+    "float-right",
+  ];
+  const offenders = [];
+  for (const name of FILES) {
+    const text = readFileSync(join(root, name), "utf8");
+    for (const token of PHYSICAL) {
+      if (text.includes(token)) offenders.push(`${name} uses "${token}"`);
+    }
+  }
+  expect(
+    "the dashboard uses logical direction utilities only",
+    offenders.length === 0,
+    offenders.length > 0 ? offenders.join(", ") : FILES.length + " files, no left/right",
+  );
+});
+
 /* ------------------------------------------------- one read path, enforced */
 
 await step("one read path", async () => {
@@ -314,6 +429,17 @@ await step("public pages", async () => {
     "GET /anliegen redirects a signed-out visitor to /anmelden",
     toSignIn,
     `status ${intake.status}, location ${intake.location ?? "-"}`,
+  );
+
+  // The dashboard is private too: a signed-out visitor is sent to sign in, never
+  // shown an empty page that looks like an account with no cases.
+  const dashboard = await get("/dashboard", { redirect: "manual" });
+  const dashboardToSignIn =
+    dashboard.status === 307 && (dashboard.location ?? "").includes("/anmelden");
+  expect(
+    "GET /dashboard redirects a signed-out visitor to /anmelden",
+    dashboardToSignIn,
+    `status ${dashboard.status}, location ${dashboard.location ?? "-"}`,
   );
 });
 
