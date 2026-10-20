@@ -182,6 +182,29 @@ export const de = {
     // language before it goes live. Never machine-translate it.
     consent:
       "Ich bin damit einverstanden, dass AIE Deutschland meine Angaben und Unterlagen vertraulich verarbeitet, um mein Anliegen zu bearbeiten. Ich kann meine Daten jederzeit löschen lassen.",
+    /*
+     * READING-AID ACKNOWLEDGEMENT — the box that has to be ticked before a
+     * document can be sent with a request.
+     *
+     * A NATIVE SPEAKER MUST CHECK THIS WORDING in any new language before it goes
+     * live. It is the line on which someone hands us their papers, so it carries
+     * the same weight as the consent text above. Never machine-translate it.
+     *
+     * WHAT IT MAY SAY — only what is true while the legal question is open (see
+     * the business plan): we are a reading and understanding aid, we are not
+     * lawyers, we are not an authority, and the person checks every deadline
+     * themselves. It must claim no conclusion about German law, must say nothing
+     * about whether this help is lawful or unlawful, and must not call our output
+     * legal advice.
+     *
+     * CHANGING THIS WORDING — in this language or any other — means bumping
+     * `READING_AID_VERSION` in `src/lib/constants.ts` in the same change, because
+     * every stored request records which version the person confirmed.
+     */
+    readingAidLabel: "Lese- und Verständnishilfe",
+    readingAid:
+      "Ich habe verstanden: AIE Deutschland ist eine Lese- und Verständnishilfe. Wir sind keine Anwältinnen und Anwälte und keine Behörde. Ich prüfe jede Frist selbst.",
+    readingAidHint: "Nötig, sobald Sie Unterlagen hochladen.",
     submit: "Anliegen senden",
     sending: "Wird gesendet …",
     success:
@@ -265,6 +288,29 @@ export const de = {
         "Sobald Sie uns eines schildern, steht es hier — sortiert nach dem Bereich, zu dem es gehört.",
       emptyCta: "Anliegen schildern",
     },
+  },
+  /*
+   * PILOT SAFEGUARDS — the monthly document cap.
+   *
+   * The owner pays for every letter personally during the pilot, so the app counts
+   * and limits how many documents one person may send. Three things have to be
+   * said plainly in every language, and the smoke test checks that these strings
+   * exist: the limit is OURS, it exists because we pay per letter ourselves, and
+   * nothing is charged to the person. The human route must stay open, with a way
+   * to take it.
+   *
+   * `{used}` and `{cap}` are filled in by the page (`src/routes/anliegen.tsx`).
+   * Every language has to keep both placeholders, or the numbers cannot be shown.
+   */
+  pilot: {
+    capTitle: "Grenze im Pilotbetrieb",
+    capBody:
+      "Im Pilotbetrieb zahlen wir jede Unterlage selbst. Deshalb nehmen wir pro Person und Kalendermonat höchstens {cap} Unterlagen an. Das ist unsere Grenze — Ihnen wird nichts berechnet.",
+    usage: "{used} von {cap} Unterlagen in diesem Monat",
+    reachedTitle: "Für diesen Monat ist die Grenze erreicht",
+    reachedBody:
+      "Sie haben in diesem Monat so viele Unterlagen gesendet, wie wir im Pilotbetrieb annehmen können. Das ist unsere Grenze, nicht Ihre: Ihnen wird nichts berechnet. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen, wir kümmern uns darum.",
+    contactCta: "Schreiben Sie uns direkt",
   },
   /*
    * THE SEVEN CAPABILITIES — the cards on the dashboard, in the business plan's
@@ -353,6 +399,10 @@ export const de = {
     subjectInvalid: "Bitte wählen Sie aus, worum es geht.",
     messageShort: "Bitte beschreiben Sie Ihr Anliegen in mindestens 20 Zeichen.",
     consentRequired: "Bitte stimmen Sie der Verarbeitung Ihrer Angaben zu.",
+    readingAidRequired:
+      "Bitte bestätigen Sie den Hinweis zur Lese- und Verständnishilfe, bevor Sie Unterlagen senden.",
+    capReached:
+      "Mehr Unterlagen können wir in diesem Monat nicht annehmen: Im Pilotbetrieb zahlen wir jede Unterlage selbst und nehmen deshalb nur eine begrenzte Zahl pro Person an. Ihnen wird nichts berechnet. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen.",
     fileType: "Nur PDF-, JPG- und PNG-Dateien. Bitte laden Sie die Datei erneut hoch.",
     fileTooLarge: "Diese Datei ist zu groß. Maximal 2 MB pro Datei.",
     filesTooMany: "Bitte laden Sie höchstens 2 Dateien hoch.",

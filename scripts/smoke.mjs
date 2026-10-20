@@ -37,7 +37,11 @@ import {
   groupByArea,
   inAreaOnly,
 } from "../src/lib/areas.ts";
-import { SUBJECT_KEYS } from "../src/lib/constants.ts";
+import {
+  MONTHLY_DOCUMENT_CAP,
+  READING_AID_VERSION,
+  SUBJECT_KEYS,
+} from "../src/lib/constants.ts";
 import { CAPABILITY_CODES } from "../src/lib/capabilities.ts";
 
 const BASE = (
@@ -298,6 +302,170 @@ await step("capabilities", async () => {
       `"${routes.aiLabel}" vs "${routes.humanLabel}"`,
     );
   }
+});
+
+/* ------------------------------------------------------- pilot safeguards */
+
+await step("pilot safeguards", async () => {
+  const root = new URL("../", import.meta.url).pathname;
+
+  // The cap is one number, written in one place. A change to the owner's figure
+  // has to be a deliberate edit to that constant, not a stray value elsewhere.
+  expect(
+    "the pilot document cap is a whole number of at least one",
+    Number.isInteger(MONTHLY_DOCUMENT_CAP) && MONTHLY_DOCUMENT_CAP >= 1,
+    `${MONTHLY_DOCUMENT_CAP} documents per person per calendar month`,
+  );
+  expect(
+    "the reading-aid acknowledgement carries a version",
+    typeof READING_AID_VERSION === "string" &&
+      READING_AID_VERSION.trim().length > 0,
+    READING_AID_VERSION,
+  );
+
+  // Wording that would claim a conclusion about German law. The acknowledgement
+  // may only say what is true while the legal question is open — see the business
+  // plan — so no language may promise that the help is lawful, unlawful, or legal
+  // advice. Checked in every language so a translation cannot smuggle a claim in.
+  const FORBIDDEN = [
+    "Rechtsberatung",
+    "legal advice",
+    "rechtmäßig",
+    "rechtswidrig",
+    "unlawful",
+    "lawful",
+    "gesetzlich zulässig",
+  ];
+
+  for (const language of LANGUAGES) {
+    const { code, dictionary: t } = language;
+    const ack = typeof t.intake?.readingAid === "string" ? t.intake.readingAid : "";
+    const pilot = t.pilot ?? {};
+
+    expect(
+      `the reading-aid acknowledgement exists in ${code}`,
+      ack.trim().length > 0,
+      ack.trim().length > 0 ? `${ack.trim().split(/\s+/).length} words` : "missing",
+    );
+    expect(
+      `the ${code} acknowledgement is labelled and has a hint`,
+      [t.intake?.readingAidLabel, t.intake?.readingAidHint].every(
+        (value) => typeof value === "string" && value.trim().length > 0,
+      ),
+      "label and hint",
+    );
+    expect(
+      `the ${code} acknowledgement has a refusal message`,
+      typeof t.errors?.readingAidRequired === "string" &&
+        t.errors.readingAidRequired.trim().length > 0,
+      "errors.readingAidRequired",
+    );
+
+    const claimed = FORBIDDEN.filter((word) =>
+      ack.toLowerCase().includes(word.toLowerCase()),
+    );
+    expect(
+      `the ${code} acknowledgement claims no conclusion about the law`,
+      claimed.length === 0,
+      claimed.length > 0 ? `contains "${claimed.join('", "')}"` : "no legal claim",
+    );
+
+    const CAP_KEYS = [
+      "capTitle",
+      "capBody",
+      "usage",
+      "reachedTitle",
+      "reachedBody",
+      "contactCta",
+    ];
+    const missingCap = CAP_KEYS.filter(
+      (key) =>
+        typeof pilot[key] !== "string" || pilot[key].trim().length === 0,
+    );
+    expect(
+      `the ${code} cap message is complete`,
+      missingCap.length === 0,
+      missingCap.length > 0 ? `missing ${missingCap.join(", ")}` : CAP_KEYS.length + " strings",
+    );
+    // The numbers are put into the sentence by the page, so every language has to
+    // keep the placeholders — otherwise the person never sees how many are left.
+    expect(
+      `the ${code} cap text keeps its number placeholders`,
+      typeof pilot.usage === "string" &&
+        pilot.usage.includes("{used}") &&
+        pilot.usage.includes("{cap}") &&
+        typeof pilot.capBody === "string" &&
+        pilot.capBody.includes("{cap}"),
+      "{used}, {cap}",
+    );
+    expect(
+      `the ${code} cap has a plain refusal message`,
+      typeof t.errors?.capReached === "string" &&
+        t.errors.capReached.trim().length > 0,
+      "errors.capReached",
+    );
+  }
+
+  // German governs, so the facts it has to state are checked in German: we pay
+  // per letter ourselves, nothing is charged, and the acknowledgement says what we
+  // are and what we are not.
+  const de = DEFAULT.dictionary;
+  expect(
+    "the German cap text says we pay ourselves and that nothing is charged",
+    /selbst/.test(de.pilot.capBody) && /nichts berechnet/.test(de.pilot.capBody),
+    "Pilotbetrieb, nichts berechnet",
+  );
+  expect(
+    "the German acknowledgement names the aid, not-lawyers, not-an-authority and the deadline",
+    /Lese- und Verständnishilfe/.test(de.intake.readingAid) &&
+      /keine Anwältinnen und Anwälte/.test(de.intake.readingAid) &&
+      /keine Behörde/.test(de.intake.readingAid) &&
+      /Frist selbst/.test(de.intake.readingAid),
+    "four facts",
+  );
+
+  // The wording lives in the language files and never in the page: a native
+  // speaker has to be able to fix it in one place, in one language.
+  const page = readFileSync(join(root, "src/routes/anliegen.tsx"), "utf8");
+  const inline = LANGUAGES.filter((language) => {
+    const text = language.dictionary.intake.readingAid;
+    return typeof text === "string" && text.length > 20 && page.includes(text.slice(0, 40));
+  }).map((language) => language.code);
+  expect(
+    "the acknowledgement is not written into the page itself",
+    inline.length === 0,
+    inline.length > 0 ? `inline in ${inline.join(", ")}` : "comes from the language files",
+  );
+
+  // And the gates are on the server, not only in the form: a disabled button is
+  // not a rule. The rules live in `src/server/pilot.server.ts` and the page's
+  // server function turns their refusal into words — both are checked here.
+  const fns = readFileSync(join(root, "src/server/fns.ts"), "utf8");
+  expect(
+    "the server function sends every submission through the pilot rules",
+    /saveRequestUnderPilotRules/.test(fns) &&
+      /errors\.readingAidRequired/.test(fns) &&
+      /errors\.capReached/.test(fns),
+    "refusals translated in submitIntake",
+  );
+  const rules = readFileSync(join(root, "src/server/pilot.server.ts"), "utf8");
+  expect(
+    "a document without the acknowledgement is refused before anything is saved",
+    /reading_aid_missing/.test(rules) &&
+      rules.indexOf("reading_aid_missing") < rules.indexOf("saveRequest("),
+    "gate before the write",
+  );
+  expect(
+    "the monthly count is a read of our own database, through the access module",
+    /countDocumentsThisMonth/.test(rules) && /cap_reached/.test(rules),
+    "countDocumentsThisMonth + cap_reached",
+  );
+  const access = readFileSync(join(root, "src/server/access.server.ts"), "utf8");
+  expect(
+    "the monthly count lives in the access module",
+    /export async function countDocumentsThisMonth/.test(access),
+    "countDocumentsThisMonth",
+  );
 });
 
 /* ------------------------------------------- the dashboard mirrors for RTL */

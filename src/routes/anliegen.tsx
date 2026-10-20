@@ -15,9 +15,11 @@ import {
   isSubjectKey,
 } from "~/lib/constants";
 import { pageLocale } from "~/lib/page-locale";
+import { fillNumbers } from "~/lib/text";
 import type { AreaCode } from "~/lib/areas";
 import {
   getBootstrap,
+  getPilotStatus,
   submitIntake,
   type DocumentPayload,
   type FieldErrors,
@@ -28,13 +30,22 @@ export const Route = createFileRoute("/anliegen")({
   loader: async () => {
     const bootstrap = await getBootstrap();
     if (!bootstrap.user) throw redirect({ to: "/anmelden" });
-    return bootstrap;
+    /*
+     * The pilot safeguards: how many documents this person has already sent this
+     * calendar month, and which wording of the reading-aid acknowledgement this
+     * page is showing. Both come from the server — the browser never supplies
+     * either number, and neither is stored anywhere but our own database.
+     */
+    const pilot = await getPilotStatus();
+    return { bootstrap, pilot };
   },
   head: async ({ loaderData, matches }) => {
     // The title in the visitor's language, in the server-rendered HTML. The
     // loader's own result carries the language when it is available and the
     // request does otherwise — see `src/lib/page-locale.ts`.
-    const t = getDictionary(await pageLocale(loaderData?.locale, matches));
+    const t = getDictionary(
+      await pageLocale(loaderData?.bootstrap.locale, matches),
+    );
     return {
       meta: [
         { title: t.meta.intakeTitle },
@@ -66,7 +77,8 @@ function readAsBase64(file: File): Promise<string> {
 
 function IntakePage() {
   const t = useT();
-  const { user, bookingUrl } = Route.useLoaderData();
+  const { bootstrap, pilot } = Route.useLoaderData();
+  const { user, bookingUrl } = bootstrap;
 
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -74,12 +86,17 @@ function IntakePage() {
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [consent, setConsent] = useState(false);
+  const [readingAidAck, setReadingAidAck] = useState(false);
   const [documents, setDocuments] = useState<DocumentPayload[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [storedArea, setStoredArea] = useState<AreaCode | null>(null);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // The cap in force and what is left of it this month. Both numbers come from
+  // the server; the page only displays them.
+  const capReached = pilot.remaining <= 0;
 
   async function onFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const chosen = Array.from(event.target.files ?? []);
@@ -88,6 +105,12 @@ function IntakePage() {
 
     if (chosen.length > MAX_FILES) {
       setErrors((p) => ({ ...p, documents: t.errors.filesTooMany }));
+      return;
+    }
+    // The pilot cap, checked before the files are read so nobody spends time
+    // uploading something we would have to refuse. The server checks it again.
+    if (chosen.length > pilot.remaining) {
+      setErrors((p) => ({ ...p, documents: t.errors.capReached }));
       return;
     }
     for (const file of chosen) {
@@ -128,6 +151,15 @@ function IntakePage() {
     if (message.trim().length < MIN_MESSAGE_LENGTH)
       local.message = t.errors.messageShort;
     if (!consent) local.consent = t.errors.consentRequired;
+    /*
+     * Both pilot gates, checked here so the person gets the answer immediately —
+     * and checked again in the server function, which is the one that decides.
+     * A disabled button alone would not be a gate: this form can be submitted
+     * without JavaScript, and a button is not a rule.
+     */
+    if (documents.length > pilot.remaining) local.documents = t.errors.capReached;
+    if (documents.length > 0 && !readingAidAck)
+      local.readingAid = t.errors.readingAidRequired;
     setErrors(local);
     if (Object.keys(local).length > 0) return;
 
@@ -141,6 +173,7 @@ function IntakePage() {
           phone,
           message,
           consent,
+          readingAidAck,
           documents,
         },
       });
@@ -307,6 +340,52 @@ function IntakePage() {
           />
         </Field>
 
+        {/*
+          THE PILOT CAP — shown before the file field, so nobody chooses files
+          only to be told afterwards that we cannot take them.
+
+          It says plainly that the limit is OURS, that it exists because we pay
+          per letter ourselves during the pilot, and that nothing is charged to
+          the person. When the limit is reached it says so in its own words and
+          keeps the human route open with a way to take it: our contact address,
+          and the overview where both routes are described. Never a silent
+          refusal and never a dead end — a request without documents is always
+          accepted, whatever the count says.
+        */}
+        <div
+          className={`card p-5 ${capReached ? "bg-brand-soft/60" : "bg-paper"}`}
+          data-pilot-cap={pilot.cap}
+          data-pilot-used={pilot.usedThisMonth}
+        >
+          <p className="text-sm font-semibold text-ink-soft">
+            {capReached ? t.pilot.reachedTitle : t.pilot.capTitle}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            {fillNumbers(capReached ? t.pilot.reachedBody : t.pilot.capBody, {
+              cap: pilot.cap,
+              used: pilot.usedThisMonth,
+            })}
+          </p>
+          <p className="mt-3 text-sm font-semibold text-brand-dark">
+            {fillNumbers(t.pilot.usage, {
+              used: pilot.usedThisMonth,
+              cap: pilot.cap,
+            })}
+          </p>
+          {capReached ? (
+            <div className="mt-4 flex flex-wrap gap-3">
+              {pilot.contactEmail ? (
+                <a className="btn-primary" href={`mailto:${pilot.contactEmail}`}>
+                  {t.pilot.contactCta}
+                </a>
+              ) : null}
+              <Link to="/dashboard" className="btn-secondary">
+                {t.nav.dashboard}
+              </Link>
+            </div>
+          ) : null}
+        </div>
+
         <Field
           id="files"
           label={t.intake.files}
@@ -319,7 +398,8 @@ function IntakePage() {
             multiple
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
             onChange={(e) => void onFiles(e)}
-            className="block w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-sm file:me-3 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand-dark"
+            disabled={capReached}
+            className="block w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-sm file:me-3 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
           />
         </Field>
 
@@ -333,6 +413,40 @@ function IntakePage() {
             ))}
           </ul>
         ) : null}
+
+        {/*
+          READING-AID ACKNOWLEDGEMENT — the wording lives in the language file
+          (`intake.readingAid`), never here, because a native speaker has to check
+          it in every language. Ticking it is what allows a document to be sent:
+          the server function refuses a submission carrying documents without it,
+          and records which version was confirmed and when. `data-reading-aid-version`
+          is the version the browser is showing — the server writes its own copy of
+          this value, so a manipulated page cannot claim another one.
+        */}
+        <div className="card bg-brand-soft/50 p-5">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-5 w-5 shrink-0 accent-[#1e654d]"
+              checked={readingAidAck}
+              onChange={(e) => setReadingAidAck(e.target.checked)}
+              aria-invalid={Boolean(errors.readingAid)}
+              data-reading-aid-version={pilot.readingAidVersion}
+            />
+            <span className="text-sm leading-relaxed text-ink-soft">
+              <span className="mb-1 block font-semibold">
+                {t.intake.readingAidLabel}
+              </span>
+              {t.intake.readingAid}
+            </span>
+          </label>
+          <p className="field-hint mt-2">{t.intake.readingAidHint}</p>
+          {errors.readingAid ? (
+            <p className="field-error mt-2" role="alert">
+              {errors.readingAid}
+            </p>
+          ) : null}
+        </div>
 
         {/*
           CONSENT — comes from the language file. Before any new language goes

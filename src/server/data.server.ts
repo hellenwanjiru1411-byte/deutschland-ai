@@ -28,6 +28,7 @@ import { areaForSubject, type AreaCode } from "~/lib/areas";
 import {
   MAX_FILE_BYTES,
   MAX_FILES,
+  MONTHLY_DOCUMENT_CAP,
   SESSION_COOKIE,
   SESSION_DAYS,
   SUBJECT_KEYS,
@@ -267,6 +268,17 @@ export type IncomingRequest = {
   message: string;
   phone: string | null;
   documents: IncomingDocument[];
+  /**
+   * The reading-aid acknowledgement, when the person gave one.
+   *
+   * Not part of the browser's choice of wording: `version` comes from
+   * `READING_AID_VERSION` and `locale` from the visitor's language cookie inside
+   * the server function. The browser only ever says "yes, I confirmed it".
+   * `null` means no acknowledgement, which is only acceptable for a request
+   * carrying no documents — the server function refuses the other combination
+   * before this function is reached.
+   */
+  readingAid: { version: string; locale: string } | null;
 };
 
 /**
@@ -277,6 +289,11 @@ export type IncomingRequest = {
  * is stamped with the case's own area — the same value, in the same statement
  * sequence — and the database refuses any document whose area differs from its
  * case's (`documents_request_area_fkey`).
+ *
+ * The reading-aid acknowledgement is written onto the case itself, in the same
+ * INSERT as the area: which wording version, which language, and when. So the
+ * record of what the person confirmed lives inside the case, in its own area of
+ * life, and cannot drift from the documents it covers.
  */
 export async function saveRequest(
   input: IncomingRequest,
@@ -285,9 +302,15 @@ export async function saveRequest(
   const q = db();
   const requestId = randomUUID();
   const area = areaForSubject(input.subject);
-  await q`insert into requests (id, user_id, city, state, subject, area, message, phone)
+  const readingAid = input.readingAid;
+  await q`insert into requests (id, user_id, city, state, subject, area, message, phone,
+                                reading_aid_version, reading_aid_locale,
+                                reading_aid_confirmed_at)
           values (${requestId}, ${input.userId}, ${input.city}, ${input.state},
-                  ${input.subject}, ${area}, ${input.message}, ${input.phone})`;
+                  ${input.subject}, ${area}, ${input.message}, ${input.phone},
+                  ${readingAid ? readingAid.version : null},
+                  ${readingAid ? readingAid.locale : null},
+                  ${readingAid ? new Date() : null})`;
   for (const doc of input.documents) {
     await q`insert into documents (id, request_id, area, filename, mime_type, content_base64, size)
             values (${randomUUID()}, ${requestId}, ${area}, ${doc.filename}, ${doc.mimeType},
@@ -358,6 +381,25 @@ export async function currentUser(): Promise<PublicUser | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * The pilot's monthly document cap, in one place.
+ *
+ * The number itself lives in `MONTHLY_DOCUMENT_CAP` (`src/lib/constants.ts`) so
+ * that the client can show it and the smoke test can check it without importing
+ * server code. This function only adds the owner's override: `PILOT_DOCUMENT_CAP`
+ * in the environment, read the same way `BOOKING_URL` is. A value that is not a
+ * whole number of zero or more is ignored in favour of the constant, so a typo in
+ * configuration cannot switch the cap off or make it negative.
+ */
+export function monthlyDocumentCap(): number {
+  const raw = process.env.PILOT_DOCUMENT_CAP?.trim();
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed >= 0) return parsed;
+  }
+  return MONTHLY_DOCUMENT_CAP;
 }
 
 /**

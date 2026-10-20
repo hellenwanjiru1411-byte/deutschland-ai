@@ -179,6 +179,39 @@ export async function listCasesByArea(
   return groupByArea(rows.map(caseSummary));
 }
 
+/**
+ * THE PILOT COUNT — how many documents this viewer has sent in the current
+ * calendar month.
+ *
+ * This is a read of `documents`, so it belongs here and nowhere else. It returns
+ * one number and nothing else: no filenames, no cases, no areas. The number is
+ * used for one purpose only — the pilot's monthly cap on our own AI bill — and it
+ * never leaves our database for a third party. There is no tracker involved.
+ *
+ * THE COUNTING RULE (one line, on purpose): every document that was sent with a
+ * request counts, whoever ends up reading it. Today that is identical to "every
+ * document uploaded", because no AI provider is connected. The owner has not yet
+ * decided whether the cap should count uploads or only documents actually sent to
+ * an AI provider — if the decision is "provider only", the condition inside the
+ * `where` clause below is the one line that changes.
+ *
+ * The month is a German calendar month (`Europe/Berlin`), because the people this
+ * serves live in Germany and "this month" has to mean their month, not UTC's.
+ */
+export async function countDocumentsThisMonth(viewer: Viewer): Promise<number> {
+  await ensureSchema();
+  const q = sql();
+  const rows = await q`select count(*)::int as used
+                       from documents d
+                       join requests r on r.id = d.request_id
+                       where r.user_id = ${viewer.userId}
+                         and d.created_at >= (
+                           date_trunc('month', now() at time zone 'Europe/Berlin')
+                             at time zone 'Europe/Berlin'
+                         )`;
+  return Number(rows[0]?.used ?? 0);
+}
+
 /* ------------------------------------------------------------------ helpers */
 
 type CaseRow = Record<string, unknown>;

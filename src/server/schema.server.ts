@@ -69,7 +69,10 @@ async function createTables(): Promise<void> {
     area text not null,
     message text not null,
     phone text,
-    created_at timestamptz not null default now()
+    created_at timestamptz not null default now(),
+    reading_aid_version text,
+    reading_aid_locale text,
+    reading_aid_confirmed_at timestamptz
   )`;
   await q`create index if not exists requests_user_id_idx on requests (user_id)`;
 
@@ -93,6 +96,31 @@ async function createTables(): Promise<void> {
   )`;
 
   await migrateAreas();
+  await migrateReadingAid();
+}
+
+/**
+ * The reading-aid acknowledgement columns on `requests`.
+ *
+ * Three nullable columns, added the same idempotent way as the area column so an
+ * existing database is brought up to date on the next start:
+ *   - `reading_aid_version`     — which wording of the acknowledgement was confirmed
+ *                                 (`READING_AID_VERSION` in `src/lib/constants.ts`),
+ *   - `reading_aid_locale`      — the language the person read it in, because the
+ *                                 wording exists per language and that is the
+ *                                 honest record of what they actually confirmed,
+ *   - `reading_aid_confirmed_at`— when they confirmed it.
+ *
+ * They are NULL when no acknowledgement was given, which is only possible for a
+ * request carrying no documents: the server function refuses every other
+ * combination before the write path is reached. When they are set, all three are
+ * set together by the one write path, so a half-filled record cannot happen.
+ */
+async function migrateReadingAid(): Promise<void> {
+  const q = sql();
+  await q`alter table requests add column if not exists reading_aid_version text`;
+  await q`alter table requests add column if not exists reading_aid_locale text`;
+  await q`alter table requests add column if not exists reading_aid_confirmed_at timestamptz`;
 }
 
 /**
