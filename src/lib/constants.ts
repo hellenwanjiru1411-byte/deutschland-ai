@@ -69,3 +69,37 @@ export const ALLOWED_FILE_TYPES: readonly string[] = [
 
 export const SESSION_COOKIE = "sid";
 export const SESSION_DAYS = 30;
+
+/* ------------------------------------------------------- pilot safeguards */
+
+/*
+ * THE PILOT DOCUMENT CAP — one number, and this is the only place it is written.
+ *
+ * The owner pays for every letter out of their own pocket during the pilot, so the
+ * number of documents one person may send is counted and limited. The owner's
+ * draft figure (Oct 2026) is 3 per person per calendar month; it is a limit on
+ * OUR bill, never a charge to the person, and it is lifted as soon as funding
+ * allows. `src/server/data.server.ts` reads this default and lets the owner
+ * override it with the `PILOT_DOCUMENT_CAP` environment variable, so raising the
+ * cap during the pilot is configuration, not a code change.
+ *
+ * WHAT COUNTS: every document sent with a request (see `countDocumentsThisMonth`
+ * in `src/server/access.server.ts`). Today that is the same as "every document
+ * uploaded", because no AI provider is connected yet. The owner has NOT decided
+ * whether the cap should later count documents actually sent to an AI provider
+ * instead of uploads — when that decision is taken, the counting rule changes in
+ * that one function and nowhere else.
+ */
+export const MONTHLY_DOCUMENT_CAP = 3;
+
+/*
+ * THE READING-AID ACKNOWLEDGEMENT VERSION.
+ *
+ * Every request that carries documents stores which wording of the reading-aid
+ * acknowledgement the person confirmed, plus when. This string is that version.
+ * If the wording in ANY language changes, bump it here in the same change: a
+ * stored confirmation must always point at the text the person actually read.
+ * The version is a plain label, not a date, so it cannot be mistaken for a
+ * deadline or a promise.
+ */
+export const READING_AID_VERSION = "reading-aid-v1";

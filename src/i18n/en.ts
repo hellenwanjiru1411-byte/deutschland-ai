@@ -180,6 +180,27 @@ export const en: Dictionary = {
     // language before it goes live. Never machine-translate it.
     consent:
       "I agree that AIE Deutschland may process my details and documents confidentially in order to handle my request. I can ask for my data to be deleted at any time.",
+    /*
+     * READING-AID ACKNOWLEDGEMENT — the box that has to be ticked before a
+     * document can be sent with a request.
+     *
+     * A NATIVE SPEAKER MUST CHECK THIS WORDING in any new language before it goes
+     * live. It is the line on which someone hands us their papers, so it carries
+     * the same weight as the consent text above. Never machine-translate it.
+     *
+     * WHAT IT MAY SAY — only what is true while the legal question is open: we are
+     * a reading and understanding aid, we are not lawyers, we are not an authority,
+     * and the person checks every deadline themselves. It must claim no conclusion
+     * about German law, must say nothing about whether this help is lawful or
+     * unlawful, and must not call our output legal advice.
+     *
+     * CHANGING THIS WORDING — in this language or any other — means bumping
+     * `READING_AID_VERSION` in `src/lib/constants.ts` in the same change.
+     */
+    readingAidLabel: "Reading and understanding aid",
+    readingAid:
+      "I understand: AIE Deutschland is a reading and understanding aid. We are not lawyers and not an authority. I check every deadline myself.",
+    readingAidHint: "Required as soon as you upload documents.",
     submit: "Send my request",
     sending: "Sending …",
     success:
@@ -250,6 +271,23 @@ export const en: Dictionary = {
         "As soon as you describe one, it appears here — sorted into the area of life it belongs to.",
       emptyCta: "Describe your request",
     },
+  },
+  /*
+   * PILOT SAFEGUARDS — the monthly document cap. See the German file for the three
+   * things these words must say plainly: the limit is ours, it exists because we
+   * pay per letter ourselves, and nothing is charged to the person. The human
+   * route stays open, with a way to take it. Keep the `{used}` and `{cap}`
+   * placeholders — the page fills them in.
+   */
+  pilot: {
+    capTitle: "Pilot limit",
+    capBody:
+      "During the pilot we pay for every document ourselves. That is why we take at most {cap} documents per person per calendar month. This limit is ours — you are not charged anything.",
+    usage: "{used} of {cap} documents this month",
+    reachedTitle: "The limit for this month is reached",
+    reachedBody:
+      "You have sent as many documents this month as we can take on during the pilot. This limit is ours, not yours: you are not charged anything. The human route stays open — describe your request without documents and we will take care of it.",
+    contactCta: "Write to us directly",
   },
   // THE SEVEN CAPABILITIES — one card each, in the business plan's order. See
   // the German file for what `body`, `aiNote` and `humanNote` may and may not say.
@@ -325,6 +363,10 @@ export const en: Dictionary = {
     subjectInvalid: "Please choose what your request is about.",
     messageShort: "Please describe your request in at least 20 characters.",
     consentRequired: "Please agree to us processing your details.",
+    readingAidRequired:
+      "Please confirm the reading-aid notice before you send documents.",
+    capReached:
+      "We cannot take more documents this month: during the pilot we pay for every document ourselves, so we only take a limited number per person. You are not charged anything. The human route stays open — describe your request without documents.",
     fileType: "Only PDF, JPG and PNG files. Please upload the file again.",
     fileTooLarge: "This file is too large. Max. 2 MB per file.",
     filesTooMany: "Please upload no more than 2 files.",

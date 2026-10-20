@@ -16,6 +16,7 @@ import {
   MAX_FILES,
   MIN_MESSAGE_LENGTH,
   MIN_PASSWORD_LENGTH,
+  READING_AID_VERSION,
   STATES,
   isSubjectKey,
 } from "~/lib/constants";
@@ -238,6 +239,62 @@ export const setLanguage = createServerFn({ method: "POST" })
     return { ok: true, next: safeNextPath(input.next) };
   });
 
+/**
+ * THE PILOT SAFEGUARDS, as the intake page sees them.
+ *
+ * Two numbers and a version, nothing else:
+ *   - `cap` — how many documents one person may send per calendar month, read from
+ *     the one constant in `src/lib/constants.ts` (env-overridable on the server),
+ *   - `usedThisMonth` / `remaining` — counted in our own database, per person, for
+ *     this purpose only (`countDocumentsThisMonth` in `./access.server`),
+ *   - `readingAidVersion` — which wording of the acknowledgement this page is
+ *     showing, so the stored confirmation points at the text the person read.
+ *
+ * This is not analytics: no third party is involved, nothing is sent anywhere, and
+ * the count is never used for anything but the cap.
+ */
+export type PilotStatus = {
+  cap: number;
+  usedThisMonth: number;
+  remaining: number;
+  readingAidVersion: string;
+  /** The human route's address, when the site has one configured. */
+  contactEmail: string | null;
+};
+
+export const getPilotStatus = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PilotStatus> => {
+    const server = await import("./data.server");
+    const cap = server.monthlyDocumentCap();
+    const contactEmail = server.contactEmail();
+    const empty: PilotStatus = {
+      cap,
+      usedThisMonth: 0,
+      remaining: cap,
+      readingAidVersion: READING_AID_VERSION,
+      contactEmail,
+    };
+
+    // Not signed in, or no database connected: show the limit as if unused. The
+    // page is behind a sign-in wall, so this is only the honest fallback for a
+    // session that has just ended — never a number that blocks anyone.
+    const user = await server.currentUser();
+    if (!user || !server.dbConfigured()) return empty;
+
+    try {
+      const access = await import("./access.server");
+      const used = await access.countDocumentsThisMonth(access.viewerForUser(user));
+      return {
+        ...empty,
+        usedThisMonth: used,
+        remaining: Math.max(0, cap - used),
+      };
+    } catch {
+      return empty;
+    }
+  },
+);
+
 export const submitIntake = createServerFn({ method: "POST" })
   .validator(
     (input: {
@@ -247,12 +304,15 @@ export const submitIntake = createServerFn({ method: "POST" })
       phone: string;
       message: string;
       consent: boolean;
+      /** The reading-aid acknowledgement. Required as soon as a document is sent. */
+      readingAidAck: boolean;
       documents: DocumentPayload[];
     }) => input,
   )
   .handler(async ({ data: input }): Promise<IntakeResult> => {
     const server = await import("./data.server");
-    const t = getDictionary(server.currentLocale());
+    const locale = server.currentLocale();
+    const t = getDictionary(locale);
     const fields: FieldErrors = {};
 
     const city = (input.city ?? "").trim();
@@ -283,6 +343,18 @@ export const submitIntake = createServerFn({ method: "POST" })
       }
     }
 
+    /*
+     * THE READING-AID ACKNOWLEDGEMENT, checked before anything else happens so the
+     * person gets the answer without a database round-trip. The gate that decides
+     * is the one in `./pilot.server`, reached further down: this check and that one
+     * say the same thing, and a submission that skipped this one would still be
+     * refused there.
+     */
+    const readingAidAck = input.readingAidAck === true;
+    if (documents.length > 0 && !readingAidAck) {
+      fields.readingAid = t.errors.readingAidRequired;
+    }
+
     if (Object.keys(fields).length > 0) return { ok: false, fields };
 
     if (!server.dbConfigured()) {
@@ -299,13 +371,23 @@ export const submitIntake = createServerFn({ method: "POST" })
     }
 
     try {
-      const stored = await server.saveRequest({
+      /*
+       * BOTH PILOT GATES ARE ENFORCED HERE, ON THE SERVER — the reading-aid
+       * acknowledgement and the monthly document cap. The rules themselves live in
+       * `./pilot.server`, which counts in our own database and writes through the
+       * one write path; this function only turns a refusal into words in the
+       * visitor's language. A disabled button in the form is not the gate.
+       */
+      const pilot = await import("./pilot.server");
+      const stored = await pilot.saveRequestUnderPilotRules({
         userId: user.id,
         city,
         state,
         subject,
         message,
         phone: phone || null,
+        readingAidAck,
+        locale,
         documents: documents.map((doc) => ({
           filename: safeFilename(doc.filename),
           mimeType: doc.mimeType,
@@ -313,6 +395,19 @@ export const submitIntake = createServerFn({ method: "POST" })
           contentBase64: doc.contentBase64,
         })),
       });
+
+      if (!stored.ok) {
+        // Plain language, and the human route stays open in both cases: a request
+        // without documents is always accepted.
+        if (stored.code === "reading_aid_missing") {
+          return {
+            ok: false,
+            fields: { readingAid: t.errors.readingAidRequired },
+          };
+        }
+        return { ok: false, error: t.errors.capReached, fields: {} };
+      }
+
       return { ok: true, area: stored.area };
     } catch {
       return { ok: false, error: t.errors.dbUnavailable, fields: {} };
