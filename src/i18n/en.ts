@@ -173,7 +173,8 @@ export const en: Dictionary = {
     message: "Briefly describe your request",
     messageHint: "At least 20 characters.",
     files: "Upload documents (optional)",
-    filesHint: "PDF, JPG or PNG. Up to 2 files, max. 2 MB each.",
+    filesHint:
+      "PDF, JPG or PNG. Up to 2 files, max. 2 MB each (3 MB in total). We check what is inside the file, not what it is called.",
     filesChosen: "Selected files",
     consentLabel: "Consent",
     // CONSENT TEXT — a native speaker must check this wording in any new
@@ -370,10 +371,14 @@ export const en: Dictionary = {
       "Please confirm the reading-aid notice before you send documents.",
     capReached:
       "AI reviews are used up for this month: during the pilot we pay for every document we put to an AI ourselves, so the number per person is limited. You are not charged anything, and the documents you have already stored stay with us. The human route stays open — describe your request without documents and we will take care of it. AI reviews are available again next calendar month.",
-    fileType: "Only PDF, JPG and PNG files. Please upload the file again.",
+    fileType:
+      "Only PDF, JPG and PNG files. We check what is inside the file, not its name — please upload the file again.",
     fileTooLarge: "This file is too large. Max. 2 MB per file.",
     filesTooMany: "Please upload no more than 2 files.",
-    filesTooBigAll: "Your files are too large together. Please upload fewer.",
+    filesTooBigAll:
+      "Your files are too large together. Please upload fewer (3 MB in total at most).",
+    fileUnreadable:
+      "We could not process this file safely. Please upload it again, or send us your request without this file.",
     dbUnavailable:
       "We cannot save your request right now. Please try again in a few minutes.",
     generic: "Something went wrong. Please try again.",

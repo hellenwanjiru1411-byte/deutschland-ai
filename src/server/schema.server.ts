@@ -96,6 +96,13 @@ async function createTables(): Promise<void> {
   await q`alter table documents add column if not exists ai_metered boolean not null default false`;
   await q`create index if not exists documents_ai_metered_idx
           on documents (ai_metered) where ai_metered`;
+  /*
+   * `original_name` — the person's own filename, kept ONLY so they recognise what
+   * they sent. `filename` is the name we generated, and it is the only one that is
+   * ever used as a path, a URL segment or a header value. See
+   * `src/server/uploads.server.ts`.
+   */
+  await q`alter table documents add column if not exists original_name text`;
 
   await q`create table if not exists login_attempts (
     email_norm text primary key,

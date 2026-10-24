@@ -51,7 +51,12 @@ export type PilotSubmission = {
 };
 
 export type PilotSaveResult =
-  | { ok: true; id: string; area: AreaCode }
+  | {
+      ok: true;
+      id: string;
+      area: AreaCode;
+      documents: { id: string; filename: string; originalName: string }[];
+    }
   | { ok: false; code: PilotRefusal };
 
 /**
@@ -101,5 +106,5 @@ export async function saveRequestUnderPilotRules(
       : null,
     documents: input.documents,
   });
-  return { ok: true, id: stored.id, area: stored.area };
+  return { ok: true, id: stored.id, area: stored.area, documents: stored.documents };
 }
