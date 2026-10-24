@@ -58,9 +58,25 @@ export function isSubjectKey(value: unknown): value is SubjectKey {
 export const MIN_PASSWORD_LENGTH = 8;
 export const MIN_MESSAGE_LENGTH = 20;
 
-/** Upload rules. Files are stored inside Postgres as base64 text. */
+/*
+ * UPLOAD RULES. Files are stored inside Postgres as base64 text.
+ *
+ * THE CAPS ARE ENFORCED ON THE REAL BYTES, ON THE SERVER (`src/server/uploads.server.ts`),
+ * after base64 is decoded — never on the number the browser declares.
+ *   - MAX_FILE_BYTES  — 2 MB per file, measured on the decoded bytes,
+ *   - MAX_TOTAL_BYTES — 3 MB for one submission, measured the same way. It is
+ *     deliberately below 2 × MAX_FILES: two big phone photos are refused together
+ *     even when each one fits, because every stored byte lives in our Postgres
+ *     database during the pilot. Raising it is a one-line change here.
+ *
+ * ALLOWED_FILE_TYPES is a HINT for the file picker (`accept`) and for the
+ * immediate message in the browser. It is NOT the gate: the browser's declared
+ * type is a string the visitor's browser chooses, so the server decides what a
+ * file is from its first bytes (magic bytes) and stores only PDF, JPEG or PNG.
+ */
 export const MAX_FILES = 2;
 export const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB per file
+export const MAX_TOTAL_BYTES = 3 * 1024 * 1024; // 3 MB per submission
 export const ALLOWED_FILE_TYPES: readonly string[] = [
   "application/pdf",
   "image/jpeg",

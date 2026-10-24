@@ -51,6 +51,25 @@ const scryptAsync = promisify(scrypt) as (
 ) => Promise<Buffer>;
 
 const SCRYPT_KEYLEN = 64;
+/*
+ * THE SIGN-IN THROTTLE — the whole rule, in two numbers.
+ *
+ *   - After LOCKOUT_THRESHOLD failed attempts for ONE email address, that address
+ *     is refused for LOCKOUT_MINUTES — even with the correct password.
+ *   - Failures older than LOCKOUT_MINUTES do not count (see `authenticate`), so
+ *     occasional typos never accumulate into a lockout.
+ *   - A successful sign-in clears the count.
+ *
+ * WHAT IT DOES NOT DO (state it plainly, do not imply otherwise):
+ *   - It is per email address, not per IP. Someone guessing across many addresses
+ *     is slowed only by the 300 ms pause on each failure, not by a lockout.
+ *   - Because the lockout is per address, anyone who knows an address can lock
+ *     that person out for fifteen minutes by failing five times. That is the
+ *     deliberate trade: a locked-out person is a smaller harm than an account
+ *     taken over. A locked-out user is unlocked by hand today (no email reset).
+ *   - A database failure inside `recordFailure` is swallowed, so a broken database
+ *     means no throttle at all — the sign-in then simply fails on the query.
+ */
 const LOCKOUT_THRESHOLD = 5;
 const LOCKOUT_MINUTES = 15;
 
@@ -149,11 +168,23 @@ export async function authenticate(input: {
   const emailNorm = normalizeEmail(input.email);
 
   const attempts =
-    await q`select failed_count, locked_until from login_attempts where email_norm = ${emailNorm} limit 1`;
+    await q`select failed_count, locked_until, updated_at from login_attempts where email_norm = ${emailNorm} limit 1`;
   if (attempts.length > 0) {
     const lockedUntil = attempts[0].locked_until as Date | null;
     if (lockedUntil && new Date(lockedUntil).getTime() > Date.now()) {
       return { ok: false, code: "locked" };
+    }
+    /*
+     * FAILURES EXPIRE. Without this line the count never aged: four typos in
+     * January plus one in June would lock an honest person out, because nothing
+     * ever reset `failed_count` except a successful sign-in or a lockout. A
+     * failure older than the lockout window is no longer evidence of guessing, so
+     * the row is dropped and the count starts again. The window is the same
+     * fifteen minutes as the lockout — one number, `LOCKOUT_MINUTES`.
+     */
+    const lastFailure = new Date(String(attempts[0].updated_at)).getTime();
+    if (Number.isFinite(lastFailure) && Date.now() - lastFailure > LOCKOUT_MINUTES * 60_000) {
+      await q`delete from login_attempts where email_norm = ${emailNorm}`;
     }
   }
 
@@ -254,8 +285,13 @@ export async function signOutCurrent(): Promise<void> {
 /* --------------------------------------------------------------- requests */
 
 export type IncomingDocument = {
+  /** OUR generated name (`<uuid>.<ext>`). The only name that becomes a path or a URL. */
   filename: string;
+  /** The person's own name, sanitised. Shown as text; never a path, URL or header. */
+  originalName: string;
+  /** Decided from the file's magic bytes, never from what the browser declared. */
   mimeType: string;
+  /** The real length of `contentBase64` after decoding. */
   size: number;
   contentBase64: string;
   /**
@@ -306,7 +342,11 @@ export type IncomingRequest = {
  */
 export async function saveRequest(
   input: IncomingRequest,
-): Promise<{ id: string; area: AreaCode }> {
+): Promise<{
+  id: string;
+  area: AreaCode;
+  documents: { id: string; filename: string; originalName: string }[];
+}> {
   await ensureSchema();
   const q = db();
   const requestId = randomUUID();
@@ -320,12 +360,21 @@ export async function saveRequest(
                   ${readingAid ? readingAid.version : null},
                   ${readingAid ? readingAid.locale : null},
                   ${readingAid ? new Date() : null})`;
+  const documents: { id: string; filename: string; originalName: string }[] = [];
   for (const doc of input.documents) {
-    await q`insert into documents (id, request_id, area, filename, mime_type, content_base64, size, ai_metered)
-            values (${randomUUID()}, ${requestId}, ${area}, ${doc.filename}, ${doc.mimeType},
-                    ${doc.contentBase64}, ${doc.size}, ${doc.aiMetered === true})`;
+    const documentId = randomUUID();
+    await q`insert into documents (id, request_id, area, filename, original_name,
+                                   mime_type, content_base64, size, ai_metered)
+            values (${documentId}, ${requestId}, ${area}, ${doc.filename},
+                    ${doc.originalName}, ${doc.mimeType}, ${doc.contentBase64},
+                    ${doc.size}, ${doc.aiMetered === true})`;
+    documents.push({
+      id: documentId,
+      filename: doc.filename,
+      originalName: doc.originalName,
+    });
   }
-  return { id: requestId, area };
+  return { id: requestId, area, documents };
 }
 
 /* ------------------------------------------------------------ request glue */
