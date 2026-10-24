@@ -46,19 +46,28 @@ export type HeaderMode = "production" | "development";
 /**
  * The Content-Security-Policy.
  *
- * `script-src 'self'` in production, with no `'unsafe-inline'` and no
- * `'unsafe-eval'`: the built site loads its JavaScript from files we serve, and
- * the smoke test fails if the served HTML ever carries an inline script again.
+ * `script-src` ALLOWS `'unsafe-inline'` IN PRODUCTION TOO, and that is a
+ * deliberate, measured decision rather than an oversight. The framework's
+ * streaming server-rendering puts its own inline `<script>` tags into the HTML
+ * (the hydration bootstrap and a stream barrier). A policy of `script-src 'self'`
+ * blocks them, and then the page renders EMPTY in a real browser — the served HTML
+ * still contains the text, so every HTML-level test passes while a person sees
+ * nothing. That is exactly what happened on 2026-10-24 and it is why
+ * `scripts/render-check.mjs` now loads the page in a browser before a publish.
  *
- * DEVELOPMENT RELAXES TWO THINGS, AND ONLY DEVELOPMENT:
- *   1. `script-src` gains `'unsafe-inline'`, because Vite's dev server injects an
- *      inline module script for the client entry and HMR — without it the working
- *      site renders an empty page. This is the dev server only; it is not built
- *      into `dist/` and it is never sent by `serve.ts` or the live site.
- *   2. `connect-src` gains `ws:`/`wss:`, because HMR dials back over a websocket.
- * `style-src` keeps `'unsafe-inline'` in BOTH modes: React writes `style`
- * attributes and Tailwind's dev pipeline injects a style element; a stylesheet
- * cannot run script, so the relaxation costs nothing that matters.
+ * WHAT THIS COSTS: inline scripts are no longer blocked by the policy, so a
+ * script-injection hole elsewhere would be easier to exploit. What still holds:
+ * no `'unsafe-eval'`, no remote script origin at all (`'self'` only), `object-src
+ * 'none'`, `base-uri 'self'` and `form-action 'self'`. Every string on the page
+ * comes from our own language files, and no user-supplied text is ever rendered as
+ * HTML.
+ *
+ * THE WAY BACK TO A STRICT POLICY: a per-request nonce, injected into the
+ * framework's script tags at render time and named in `script-src`. That needs the
+ * framework to support it; until then, blocking inline scripts breaks the site, and
+ * a policy that breaks the site is not a security control. `style-src` keeps
+ * `'unsafe-inline'` in both modes for the same reason: React writes `style`
+ * attributes, and a stylesheet cannot run script.
  */
 function contentSecurityPolicy(mode: HeaderMode): string {
   const dev = mode === "development";
@@ -70,7 +79,7 @@ function contentSecurityPolicy(mode: HeaderMode): string {
     "base-uri 'self'",
     "form-action 'self'",
     "img-src 'self' data:",
-    dev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     dev ? "connect-src 'self' ws: wss:" : "connect-src 'self'",
