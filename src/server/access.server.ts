@@ -180,20 +180,25 @@ export async function listCasesByArea(
 }
 
 /**
- * THE PILOT COUNT — how many documents this viewer has sent in the current
- * calendar month.
+ * THE PILOT METER — how many of this viewer's documents the AI has taken on in
+ * the current calendar month. **Documents stored but not AI work are not
+ * counted.**
  *
  * This is a read of `documents`, so it belongs here and nowhere else. It returns
  * one number and nothing else: no filenames, no cases, no areas. The number is
  * used for one purpose only — the pilot's monthly cap on our own AI bill — and it
  * never leaves our database for a third party. There is no tracker involved.
  *
- * THE COUNTING RULE (one line, on purpose): every document that was sent with a
- * request counts, whoever ends up reading it. Today that is identical to "every
- * document uploaded", because no AI provider is connected. The owner has not yet
- * decided whether the cap should count uploads or only documents actually sent to
- * an AI provider — if the decision is "provider only", the condition inside the
- * `where` clause below is the one line that changes.
+ * THE COUNTING RULE (one line, on purpose): only documents marked
+ * `ai_metered` count. Owner's rule, Oct 2026 — archiving and organising paperwork
+ * is unlimited; the limit is a meter on what the AI does with a letter, because
+ * that is what costs money. `ai_metered` is stamped when a document is written
+ * (`saveRequest` in `./data.server`), from the one switch `AI_ROUTE_CONNECTED` in
+ * `src/lib/constants.ts`. While no provider is connected, `ai_metered` is `false`
+ * for every row, this returns 0, and nothing anyone uploads is refused.
+ *
+ * To change what the cap counts, change the one condition `and d.ai_metered`
+ * below — and nothing else in the codebase.
  *
  * The month is a German calendar month (`Europe/Berlin`), because the people this
  * serves live in Germany and "this month" has to mean their month, not UTC's.
@@ -205,6 +210,7 @@ export async function countDocumentsThisMonth(viewer: Viewer): Promise<number> {
                        from documents d
                        join requests r on r.id = d.request_id
                        where r.user_id = ${viewer.userId}
+                         and d.ai_metered
                          and d.created_at >= (
                            date_trunc('month', now() at time zone 'Europe/Berlin')
                              at time zone 'Europe/Berlin'

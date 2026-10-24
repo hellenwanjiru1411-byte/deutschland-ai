@@ -273,20 +273,23 @@ export const en: Dictionary = {
     },
   },
   /*
-   * PILOT SAFEGUARDS — the monthly document cap. See the German file for the three
-   * things these words must say plainly: the limit is ours, it exists because we
-   * pay per letter ourselves, and nothing is charged to the person. The human
-   * route stays open, with a way to take it. Keep the `{used}` and `{cap}`
-   * placeholders — the page fills them in.
+   * PILOT SAFEGUARDS — the monthly meter on AI work. See the German file for the
+   * four things these words must say exactly: storing and organising documents is
+   * unlimited, the limit of {cap} applies only to what the AI does with a letter,
+   * that limit caps OUR bill and is never a wall around the person, and nothing is
+   * charged to the person. `notConnected` says plainly that nothing is refused
+   * today. Keep the `{used}` and `{cap}` placeholders — the page fills them in.
    */
   pilot: {
-    capTitle: "Pilot limit",
+    capTitle: "Storing documents: unlimited",
     capBody:
-      "During the pilot we pay for every document ourselves. That is why we take at most {cap} documents per person per calendar month. This limit is ours — you are not charged anything.",
-    usage: "{used} of {cap} documents this month",
-    reachedTitle: "The limit for this month is reached",
+      "You can store and organise as many documents as you like — there is no limit on that. The limit of {cap} per person per calendar month applies only to what the AI does with a letter: during the pilot we pay for every document we put to an AI ourselves. It caps our costs and is no barrier for you. You are not charged anything.",
+    usage: "{used} of {cap} AI reviews this month",
+    notConnected:
+      "No AI is connected yet. That is why nothing is refused today: you can store your documents, as many as you like.",
+    reachedTitle: "AI reviews are used up for this month",
     reachedBody:
-      "You have sent as many documents this month as we can take on during the pilot. This limit is ours, not yours: you are not charged anything. The human route stays open — describe your request without documents and we will take care of it.",
+      "We have put as many documents to an AI this month as we can pay for ourselves during the pilot. This limit is ours, not yours: you are not charged anything, and documents you have already stored stay with us. The human route stays open — describe your request without documents and we will take care of it. AI reviews are available again next calendar month.",
     contactCta: "Write to us directly",
   },
   // THE SEVEN CAPABILITIES — one card each, in the business plan's order. See
@@ -366,7 +369,7 @@ export const en: Dictionary = {
     readingAidRequired:
       "Please confirm the reading-aid notice before you send documents.",
     capReached:
-      "We cannot take more documents this month: during the pilot we pay for every document ourselves, so we only take a limited number per person. You are not charged anything. The human route stays open — describe your request without documents.",
+      "AI reviews are used up for this month: during the pilot we pay for every document we put to an AI ourselves, so the number per person is limited. You are not charged anything, and the documents you have already stored stay with us. The human route stays open — describe your request without documents and we will take care of it. AI reviews are available again next calendar month.",
     fileType: "Only PDF, JPG and PNG files. Please upload the file again.",
     fileTooLarge: "This file is too large. Max. 2 MB per file.",
     filesTooMany: "Please upload no more than 2 files.",

@@ -10,18 +10,22 @@
  * place that reads documents) and the write through `./data.server` (the only
  * place that writes them). This module assembles nothing itself.
  *
- * THE TWO RULES (business plan rev. 12, owner's direction Oct 2026):
+ * THE TWO RULES (business plan rev. 13, owner's direction Oct 2026):
  *   1. READING-AID ACKNOWLEDGEMENT — a submission carrying a document must carry
  *      the acknowledgement. Without it, nothing is saved.
- *   2. PILOT DOCUMENT CAP — per person, per calendar month, counted in our own
- *      database. Past the cap, nothing is saved; a request with no documents is
- *      always accepted, because the cap is on our bill and not on asking for help.
+ *   2. PILOT AI METER — per person, per calendar month, counted in our own
+ *      database, and **only on documents that go to an AI provider**. Storing and
+ *      organising paperwork is unlimited: those documents are saved whatever the
+ *      meter says. Past the meter, a submission whose documents would be AI work is
+ *      refused; openings, archiving and the human route stay open, because the
+ *      limit is on our bill and never a wall around the person.
  *
  * CONFIDENTIALITY: nothing here logs, and neither refusal carries any personal
  * data. The caller turns a refusal code into words in the visitor's language.
  */
 import type { AreaCode } from "~/lib/areas";
 import { READING_AID_VERSION, type SubjectKey } from "~/lib/constants";
+import { meteredDocumentCount, overCap } from "~/lib/pilot-cap";
 import { countDocumentsThisMonth, viewerForUser } from "./access.server";
 import {
   monthlyDocumentCap,
@@ -67,16 +71,20 @@ export async function saveRequestUnderPilotRules(
   }
 
   /*
-   * GATE 2 — the monthly document cap. Counted from our own database, for this
-   * purpose only. The check and the write are two statements, so two submissions
-   * fired at the same instant could each pass and leave the person one request
-   * over: that is accepted deliberately. A lock held across the write would be a
-   * heavier promise than this limit makes — it protects the owner's spending, and
+   * GATE 2 — the monthly AI meter. Only documents that go to an AI provider are
+   * counted (`meteredDocumentCount`), so a submission of paperwork we merely
+   * store never reaches the count at all and is never refused: storing is
+   * unlimited. Counted from our own database, for this purpose only. The check
+   * and the write are two statements, so two submissions fired at the same
+   * instant could each pass and leave the person one letter over: that is
+   * accepted deliberately. A lock held across the write would be a heavier
+   * promise than this limit makes — it protects the owner's spending, and
    * nothing is charged to the person either way.
    */
-  if (input.documents.length > 0) {
+  const incomingMetered = meteredDocumentCount(input.documents);
+  if (incomingMetered > 0) {
     const used = await countDocumentsThisMonth(viewerForUser({ id: input.userId }));
-    if (used + input.documents.length > monthlyDocumentCap()) {
+    if (overCap(used, incomingMetered, monthlyDocumentCap())) {
       return { ok: false, code: "cap_reached" };
     }
   }

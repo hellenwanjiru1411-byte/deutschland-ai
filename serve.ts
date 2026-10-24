@@ -9,6 +9,7 @@
 // with an already-running server. Every sandbox user has passwordless sudo, so
 // the takeover works across user boundaries.
 import handler from "./dist/server/server.js";
+import { withSecurityHeaders } from "./src/server/security-headers.ts";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -50,10 +51,20 @@ const takeOverPort = async (): Promise<void> => {
       const { pathname } = new URL(req.url);
       if (pathname !== "/") {
         const file = Bun.file(CLIENT_DIR + pathname);
-        if (await file.exists()) return new Response(file);
+        if (await file.exists()) return withSecurityHeaders(new Response(file));
       }
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- the built server entry default-exports a Bun fetch handler, and the dist import is untyped.
-      return (handler as { fetch: (r: Request) => Response | Promise<Response> }).fetch(req);
+      const response = await (
+        handler as { fetch: (r: Request) => Response | Promise<Response> }
+      ).fetch(req);
+      /*
+       * EVERY response leaves through here, so every response carries the
+       * security headers — a server-rendered page, a redirect to the sign-in
+       * page, a JSON server-function reply and a static file alike. The list
+       * lives in `src/server/security-headers.ts`; this is production, so the
+       * development relaxations are not applied.
+       */
+      return withSecurityHeaders(response);
     },
   });
 };
