@@ -8,16 +8,45 @@
  * kind — an external font would leak every visitor's IP address to a third party.
  */
 @theme {
-  --color-paper: #f4f6f1;
+  /*
+   * THE OWNER'S COLOUR SYSTEM (Oct 2026), named exactly as the owner named it.
+   * These three are the palette; everything below them is a semantic token the
+   * components use, mapped onto them so the palette can change in one place.
+   */
+  --color-forest: #1a3a2b; /* Deep Administrative Forest Green — primary */
+  --color-forest-dark: #12291e; /* one step darker, for hover on the primary */
+  --color-forest-soft: #e6ece8; /* forest at ~8% on the soft gray, for tinted panels */
+  --color-soft-gray: #f4f6f5; /* Institutional Soft Gray — the big soft surface */
+  --color-gold: #d4af37; /* Warm Sovereign Gold — real deadlines and alerts ONLY */
+  --color-gold-soft: #faf3dc; /* the gold as a background tint, ink text on top */
+
+  /*
+   * GOLD IS NEVER TEXT ON WHITE. #D4AF37 on #ffffff is 2.1:1 — far below the 4.5:1
+   * a person needs to read a sentence. So gold is only ever a border, a rule or a
+   * background with dark ink on it (ink on gold is ~7:1). `--color-gold-text` is
+   * the darker step to use if a deadline ever has to be *written* in gold.
+   */
+  --color-gold-text: #7a5f0f;
+
+  /*
+   * The old bright lime (#d8f278) is retired: it was decoration, and decoration is
+   * not what gold is for. The places that used it as a badge or a hover colour keep
+   * a light forest tint instead. The name stays so no component had to change.
+   */
+  --color-lime: #d9e4dc;
+
+  /* ---- semantic tokens (the names the components actually use) ---- */
+  --color-paper: var(--color-soft-gray);
   --color-surface: #ffffff;
-  --color-ink: #17231f;
-  --color-ink-soft: #3e4b45;
-  --color-muted: #5f6d67;
-  --color-line: #dce3dc;
-  --color-brand: #1e654d;
-  --color-brand-dark: #154c39;
-  --color-brand-soft: #e8eee7;
-  --color-lime: #d8f278;
+  --color-ink: #14211b;
+  --color-ink-soft: #3a4a43;
+  --color-muted: #5a6b63;
+  --color-line: #d9e0db;
+  --color-brand: var(--color-forest);
+  --color-brand-dark: var(--color-forest-dark);
+  --color-brand-soft: var(--color-forest-soft);
+  --color-accent: var(--color-gold);
+  --color-accent-soft: var(--color-gold-soft);
   --color-danger: #9b2c1f;
   --color-danger-soft: #fdecea;
 
@@ -38,7 +67,7 @@
     @apply bg-paper font-sans text-ink antialiased;
   }
   ::selection {
-    background: var(--color-lime);
+    background: var(--color-accent-soft);
     color: var(--color-ink);
   }
   :focus-visible {

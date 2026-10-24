@@ -74,6 +74,20 @@ export type CaseDocument = {
   createdAt: string;
 };
 
+/**
+ * One document's contents, for a download. Never listed, never cached: it is read
+ * only when the person asks for that one file (`getDocumentForDownload` below).
+ */
+export type StoredDocument = {
+  id: string;
+  area: AreaCode;
+  /** The name we generated at upload time — the only one used in a URL or header. */
+  filename: string;
+  mimeType: string;
+  size: number;
+  contentBase64: string;
+};
+
 /* -------------------------------------------------------------------- reads */
 
 /**
@@ -177,6 +191,51 @@ export async function listCasesByArea(
                        where r.user_id = ${viewer.userId}
                        order by r.created_at desc`;
   return groupByArea(rows.map(caseSummary));
+}
+
+/**
+ * One document's BYTES, for the person who owns it — and for nobody else.
+ *
+ * This is the only read of `documents.content_base64` in the codebase. It is
+ * reached from one place, the download route (`src/routes/dokument.$id.ts`), which
+ * serves the file as an attachment with the type we decided at upload time.
+ *
+ * The area is not an argument here, because the browser only ever knows a document
+ * id and must not be able to name an area: the document's own area is read from
+ * the row, and the join to `requests` proves both that the viewer owns the case
+ * and that the document sits in the same area as its case (`d.area = r.area`, the
+ * pair the database itself enforces through `documents_request_area_fkey`). A
+ * document of another person, or of another area, is simply not found.
+ */
+export async function getDocumentForDownload(
+  viewer: Viewer,
+  documentId: string,
+): Promise<StoredDocument | null> {
+  if (!documentId || documentId.length > 64) return null;
+  await ensureSchema();
+  const q = sql();
+  const rows = await q`select d.id, d.area, d.filename, d.mime_type, d.size,
+                              d.content_base64
+                       from documents d
+                       join requests r on r.id = d.request_id
+                       where d.id = ${documentId}
+                         and r.user_id = ${viewer.userId}
+                         and d.area = r.area
+                       limit 1`;
+  if (rows.length === 0) return null;
+  const area = String(rows[0].area) as AreaCode;
+  const row = rows[0];
+  const stored: StoredDocument = {
+    id: String(row.id),
+    area,
+    filename: String(row.filename),
+    mimeType: String(row.mime_type),
+    size: Number(row.size),
+    contentBase64: String(row.content_base64),
+  };
+  // The same guard the list reads use: a row from another area must never be
+  // handed back, even if a future query forgot a condition.
+  return inAreaOnly(area, [stored])[0] ?? null;
 }
 
 /**

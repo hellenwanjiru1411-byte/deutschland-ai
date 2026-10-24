@@ -175,7 +175,8 @@ export const de = {
     message: "Beschreiben Sie kurz Ihr Anliegen",
     messageHint: "Mindestens 20 Zeichen.",
     files: "Unterlagen hochladen (optional)",
-    filesHint: "PDF, JPG oder PNG. Maximal 2 Dateien, je höchstens 2 MB.",
+    filesHint:
+      "PDF, JPG oder PNG. Maximal 2 Dateien, je höchstens 2 MB (insgesamt 3 MB). Wir prüfen, was in der Datei steht, nicht wie sie heißt.",
     filesChosen: "Ausgewählte Dateien",
     consentLabel: "Einverständnis",
     // CONSENT TEXT — a native speaker must check this wording in any new
@@ -408,10 +409,14 @@ export const de = {
       "Bitte bestätigen Sie den Hinweis zur Lese- und Verständnishilfe, bevor Sie Unterlagen senden.",
     capReached:
       "Für diesen Monat sind die KI-Auswertungen ausgeschöpft: Jede Unterlage, die wir einer KI vorlegen, zahlen wir im Pilotbetrieb selbst, deshalb ist die Zahl pro Person begrenzt. Ihnen wird nichts berechnet, und Ihre bisherigen Unterlagen bleiben erhalten. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen, wir kümmern uns darum. Im nächsten Kalendermonat ist die KI-Auswertung wieder frei.",
-    fileType: "Nur PDF-, JPG- und PNG-Dateien. Bitte laden Sie die Datei erneut hoch.",
+    fileType:
+      "Nur PDF-, JPG- und PNG-Dateien. Wir prüfen den Inhalt der Datei, nicht ihren Namen — bitte laden Sie die Datei erneut hoch.",
     fileTooLarge: "Diese Datei ist zu groß. Maximal 2 MB pro Datei.",
     filesTooMany: "Bitte laden Sie höchstens 2 Dateien hoch.",
-    filesTooBigAll: "Die Dateien sind zusammen zu groß. Bitte laden Sie weniger hoch.",
+    filesTooBigAll:
+      "Die Dateien sind zusammen zu groß. Bitte laden Sie weniger hoch (höchstens 3 MB insgesamt).",
+    fileUnreadable:
+      "Diese Datei konnten wir nicht sicher verarbeiten. Bitte laden Sie sie erneut hoch oder senden Sie uns Ihr Anliegen ohne diese Datei.",
     dbUnavailable:
       "Wir können Ihr Anliegen gerade nicht speichern. Bitte versuchen Sie es in ein paar Minuten noch einmal.",
     generic: "Da ist etwas schiefgelaufen. Bitte versuchen Sie es noch einmal.",

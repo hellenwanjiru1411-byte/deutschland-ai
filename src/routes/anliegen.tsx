@@ -9,6 +9,7 @@ import {
   ALLOWED_FILE_TYPES,
   MAX_FILES,
   MAX_FILE_BYTES,
+  MAX_TOTAL_BYTES,
   MIN_MESSAGE_LENGTH,
   STATES,
   SUBJECT_KEYS,
@@ -91,6 +92,9 @@ function IntakePage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [storedArea, setStoredArea] = useState<AreaCode | null>(null);
+  const [storedDocs, setStoredDocs] = useState<
+    { id: string; filename: string; originalName: string }[]
+  >([]);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -123,6 +127,13 @@ function IntakePage() {
       return;
     }
     for (const file of chosen) {
+      /*
+       * A HINT, NOT THE GATE. `file.type` is a string the browser chooses, so this
+       * check only spares the person a round trip: the decision is made on the
+       * server, from the file's first bytes (`src/server/uploads.server.ts`), and a
+       * renamed SVG that declares `image/png` passes this check and is still
+       * refused there.
+       */
       if (!ALLOWED_FILE_TYPES.includes(file.type)) {
         setErrors((p) => ({ ...p, documents: t.errors.fileType }));
         return;
@@ -131,6 +142,11 @@ function IntakePage() {
         setErrors((p) => ({ ...p, documents: t.errors.fileTooLarge }));
         return;
       }
+    }
+    const totalBytes = chosen.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      setErrors((p) => ({ ...p, documents: t.errors.filesTooBigAll }));
+      return;
     }
     try {
       const payload: DocumentPayload[] = [];
@@ -192,6 +208,7 @@ function IntakePage() {
       });
       if (result.ok) {
         setStoredArea(result.area);
+        setStoredDocs(result.documents ?? []);
         setDone(true);
         return;
       }
@@ -219,6 +236,32 @@ function IntakePage() {
             {t.intake.filedUnder}{" "}
             <span className="font-semibold text-ink-soft">{t.areas[storedArea]}</span>
           </p>
+        ) : null}
+        {storedDocs.length > 0 ? (
+          /*
+            The person's own files, handed back to them. The link carries the
+            document's internal id and nothing else; the route serves it as a
+            download of the type we decided at upload time. The label is the name
+            they gave the file, shown as text — never as a path or a URL.
+          */
+          <div className="mt-6">
+            <p className="text-sm font-semibold text-ink-soft">
+              {t.intake.filesChosen}
+            </p>
+            <ul className="mt-2 flex flex-col gap-2 text-sm">
+              {storedDocs.map((doc) => (
+                <li key={doc.id}>
+                  <a
+                    className="prose-link"
+                    href={`/dokument/${doc.id}`}
+                    download={doc.filename}
+                  >
+                    {doc.originalName}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         <div className="mt-8 flex flex-wrap gap-3">
           {/* Straight to the overview, where the new case is now listed. */}
@@ -446,7 +489,7 @@ function IntakePage() {
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
-              className="mt-1 h-5 w-5 shrink-0 accent-[#1e654d]"
+              className="mt-1 h-5 w-5 shrink-0 accent-forest"
               checked={readingAidAck}
               onChange={(e) => setReadingAidAck(e.target.checked)}
               aria-invalid={Boolean(errors.readingAid)}
@@ -477,7 +520,7 @@ function IntakePage() {
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
-              className="mt-1 h-5 w-5 shrink-0 accent-[#1e654d]"
+              className="mt-1 h-5 w-5 shrink-0 accent-forest"
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
               aria-invalid={Boolean(errors.consent)}
