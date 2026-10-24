@@ -15,6 +15,13 @@ export type AppUser = { name: string; email: string } | null;
 export type AppState = {
   locale: Locale;
   user: AppUser;
+  /**
+   * Is this account the owner? It decides ONE thing here: whether the header
+   * offers the link to the private inbox. It is not the access rule — the inbox
+   * checks the stored role on the server for every request, so hiding or showing
+   * this link changes nothing about who may read what.
+   */
+  isOwner: boolean;
   bookingUrl: string | null;
   /** From `site.json` — the one contact route the site offers. */
   contactEmail: string | null;
@@ -23,6 +30,7 @@ export type AppState = {
 const AppContext = createContext<AppState>({
   locale: DEFAULT_LOCALE,
   user: null,
+  isOwner: false,
   bookingUrl: null,
   contactEmail: null,
 });
@@ -190,7 +198,7 @@ function SignOutButton() {
 }
 
 export function Header() {
-  const { user, bookingUrl } = useApp();
+  const { user, isOwner, bookingUrl } = useApp();
   const t = useT();
 
   return (
@@ -239,6 +247,26 @@ export function Header() {
               >
                 {t.nav.dashboard}
               </Link>
+              {/*
+                The person's own list, and — for the owner only — the private
+                inbox. Showing the inbox link to the owner is a courtesy, not a
+                permission: `/postfach` answers "not found" to every other account
+                in the server response (see `src/routes/postfach.tsx`).
+              */}
+              <Link
+                to="/meine-anliegen"
+                className="inline-flex min-h-11 items-center px-1.5 text-sm font-semibold text-ink-soft transition hover:text-brand"
+              >
+                {t.nav.myRequests}
+              </Link>
+              {isOwner ? (
+                <Link
+                  to="/postfach"
+                  className="inline-flex min-h-11 items-center px-1.5 text-sm font-semibold text-ink-soft transition hover:text-brand"
+                >
+                  {t.nav.inbox}
+                </Link>
+              ) : null}
               <Link
                 to="/anliegen"
                 className="btn-primary px-3.5 text-[13px] sm:px-5 sm:text-sm"

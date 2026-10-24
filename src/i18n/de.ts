@@ -12,6 +12,7 @@
  *     speaker has to sign off before the language goes live.
  */
 import type { AreaCode } from "~/lib/areas";
+import type { CaseStatus } from "~/lib/cases";
 import type { CapabilityCode, CapabilityCopy } from "~/lib/capabilities";
 
 export const de = {
@@ -29,6 +30,8 @@ export const de = {
     signInTitle: "Anmelden — AIE Deutschland",
     intakeTitle: "Anliegen schildern — AIE Deutschland",
     dashboardTitle: "Ihr Überblick — AIE Deutschland",
+    myRequestsTitle: "Meine Anliegen — AIE Deutschland",
+    inboxTitle: "Postfach — AIE Deutschland",
   },
   nav: {
     label: "Navigation",
@@ -40,6 +43,8 @@ export const de = {
     signingOut: "Wird abgemeldet …",
     intake: "Anliegen schildern",
     dashboard: "Überblick",
+    myRequests: "Meine Anliegen",
+    inbox: "Postfach",
     home: "Startseite",
   },
   lang: {
@@ -288,6 +293,7 @@ export const de = {
       emptyLead:
         "Sobald Sie uns eines schildern, steht es hier — sortiert nach dem Bereich, zu dem es gehört.",
       emptyCta: "Anliegen schildern",
+      listCta: "Alle Anliegen ansehen",
     },
   },
   /*
@@ -317,6 +323,128 @@ export const de = {
     reachedBody:
       "Wir haben in diesem Monat so viele Unterlagen einer KI vorgelegt, wie wir im Pilotbetrieb selbst bezahlen können. Das ist unsere Grenze, nicht Ihre: Ihnen wird nichts berechnet, und bereits abgelegte Unterlagen bleiben erhalten. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen, wir kümmern uns darum. Im nächsten Kalendermonat ist die KI-Auswertung wieder frei.",
     contactCta: "Schreiben Sie uns direkt",
+  },
+  /*
+   * THE STATUS OF A CASE, in plain words.
+   *
+   * Three states, and every language has to say exactly these three things: we
+   * have it, we are working on it, it is done. Nothing here is a legal outcome and
+   * nothing claims an authority did anything — "abgeschlossen" means WE have
+   * finished our part, never that a decision has been made anywhere.
+   *
+   * `satisfies Record<CaseStatus, string>` makes a missing status a build error in
+   * every language, exactly like the areas of life.
+   */
+  caseStatus: {
+    label: "Stand",
+    received: "Eingegangen",
+    in_progress: "In Bearbeitung",
+    completed: "Abgeschlossen",
+  } satisfies { label: string } & Record<CaseStatus, string>,
+  /*
+   * THE PERSON'S OWN LIST (`/meine-anliegen`).
+   *
+   * It shows the person their own cases: area of life, date, status in plain
+   * words, the documents they sent (downloadable), and a way to delete a case for
+   * good. The delete confirmation has to name what goes — the case, its date, its
+   * area and how many documents — because "delete" without saying what is a
+   * decision made in the dark.
+   *
+   * The notice block is the one place we ask the person for something. It says it
+   * is from US, it is one line, and it can be put away for good.
+   */
+  myRequests: {
+    title: "Meine Anliegen",
+    lead: "Alle Anliegen, die Sie uns geschildert haben — das neueste zuerst. Zu jedem sehen Sie den Bereich, das Datum, den Stand und Ihre Unterlagen.",
+    receivedLabel: "Eingegangen am",
+    areaLabel: "Bereich",
+    messageLabel: "Ihre Nachricht",
+    documentsTitle: "Unterlagen",
+    noDocuments: "Keine Unterlagen dabei.",
+    download: "Herunterladen",
+    emptyTitle: "Sie haben uns noch kein Anliegen geschildert.",
+    emptyLead:
+      "Sobald Sie uns eines schildern, steht es hier — mit Bereich, Datum, Stand und Ihren Unterlagen.",
+    emptyCta: "Anliegen schildern",
+    backToDashboard: "Zum Überblick",
+    deleteCta: "Anliegen löschen",
+    deleteConfirmTitle: "Dieses Anliegen endgültig löschen?",
+    deleteSubject: "Anliegen",
+    deleteDate: "Datum",
+    deleteArea: "Bereich",
+    deleteDocuments: "Unterlagen",
+    deleteConfirmNote:
+      "Damit werden das Anliegen und alle seine Unterlagen gelöscht — bei uns, endgültig. Rückgängig machen können wir das nicht.",
+    deleteConfirmYes: "Ja, endgültig löschen",
+    deleteCancel: "Abbrechen",
+    deleting: "Wird gelöscht …",
+    deleted: "Ihr Anliegen und seine Unterlagen sind gelöscht.",
+    noticeTitle: "Wir brauchen noch eine Unterlage",
+    // THE NOTICE IS FROM US. It never reads as if an authority had asked, and no
+    // authority's name or logo appears anywhere near it.
+    noticeFrom: "Nachricht von AIE Deutschland",
+    noticeCaseLabel: "Zu Ihrem Anliegen",
+    noticeAttachTitle: "Unterlage hinzufügen",
+    noticeFileLabel: "Datei auswählen",
+    noticeAttachSubmit: "Unterlage senden",
+    noticeAttaching: "Wird gesendet …",
+    noticeAttached: "Danke — Ihre Unterlage ist angekommen.",
+    noticeDismiss: "Ausblenden",
+    noticeDismissHint:
+      "Sie können diese Anfrage ausblenden. Sie erscheint dann nicht wieder.",
+    noticeDismissed: "Ausgeblendet.",
+  },
+  /*
+   * THE OWNER'S INBOX (`/postfach`) — the owner's own casework view.
+   *
+   * IT IS NOT AN OFFICER CONSOLE, and the copy has to say so in the plainest
+   * words: it is our own inbox, there is no authority account, no authority's name
+   * or logo, no check against official records, and no connection to a health
+   * insurer. What the owner sees is what the person sent us themselves.
+   *
+   * Every string here is written for the owner, not for a customer: "Anfordern"
+   * means the owner asks the person for a document, and the hint says plainly that
+   * the person sees the sentence in their own area and that no e-mail is sent.
+   */
+  inbox: {
+    title: "Postfach",
+    lead: "Alle Anliegen, die bei uns eingegangen sind — das neueste zuerst. Sie bearbeiten sie hier selbst.",
+    honestyTitle: "Unser eigenes Postfach",
+    honesty:
+      "Hier arbeiten wir an den Anliegen, die Menschen uns schildern. Das ist kein Amt und keine Behörde: Es gibt keine Anmeldung für Behörden, keine Prüfung gegen amtliche Register und keine Verbindung zu Krankenkassen oder Kliniken. Was hier steht, hat die Person uns selbst geschickt.",
+    emptyTitle: "Noch kein Anliegen eingegangen.",
+    emptyLead: "Sobald jemand ein Anliegen schildert, steht es hier.",
+    personLabel: "Von",
+    emailLabel: "E-Mail",
+    phoneLabel: "Telefon",
+    cityLabel: "Ort",
+    stateLabel: "Bundesland",
+    subjectLabel: "Anliegen",
+    areaLabel: "Bereich",
+    receivedLabel: "Eingegangen",
+    statusLabel: "Stand",
+    messageLabel: "Nachricht",
+    documentsLabel: "Unterlagen",
+    noDocuments: "Keine Unterlagen.",
+    download: "Herunterladen",
+    markInProgress: "In Bearbeitung nehmen",
+    markCompleted: "Als abgeschlossen markieren",
+    markReceived: "Zurück auf „Eingegangen“",
+    statusSaving: "Wird gespeichert …",
+    noticeTitle: "Unterlage anfordern",
+    noticeIntro:
+      "Die Person sieht diesen Satz in ihrem eigenen Bereich — als Nachricht von AIE Deutschland, nicht von einer Behörde. Eine E-Mail wird nicht verschickt.",
+    noticeField: "Welche Unterlage fehlt?",
+    noticeHint:
+      "Kurz und konkret, zum Beispiel: „Bitte laden Sie die Wohnungsgeberbestätigung hoch.“",
+    noticeSubmit: "Anfordern",
+    noticeSending: "Wird angefordert …",
+    noticeSent: "Angefordert — die Person sieht es in ihrem Bereich.",
+    noticesTitle: "Angeforderte Unterlagen",
+    noticeStateOpen: "offen",
+    noticeStateDismissed: "von der Person ausgeblendet",
+    noticeStateFulfilled: "eingegangen",
+    noNotices: "Noch nichts angefordert.",
   },
   /*
    * THE SEVEN CAPABILITIES — the cards on the dashboard, in the business plan's
@@ -407,6 +535,11 @@ export const de = {
     consentRequired: "Bitte stimmen Sie der Verarbeitung Ihrer Angaben zu.",
     readingAidRequired:
       "Bitte bestätigen Sie den Hinweis zur Lese- und Verständnishilfe, bevor Sie Unterlagen senden.",
+    fileRequired: "Bitte wählen Sie eine Datei aus.",
+    caseNotFound: "Dieses Anliegen gibt es nicht mehr.",
+    noticeTooShort:
+      "Bitte schreiben Sie in mindestens 10 Zeichen, welche Unterlage fehlt.",
+    noticeTooLong: "Bitte fassen Sie sich kürzer — höchstens 600 Zeichen.",
     capReached:
       "Für diesen Monat sind die KI-Auswertungen ausgeschöpft: Jede Unterlage, die wir einer KI vorlegen, zahlen wir im Pilotbetrieb selbst, deshalb ist die Zahl pro Person begrenzt. Ihnen wird nichts berechnet, und Ihre bisherigen Unterlagen bleiben erhalten. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen, wir kümmern uns darum. Im nächsten Kalendermonat ist die KI-Auswertung wieder frei.",
     fileType:

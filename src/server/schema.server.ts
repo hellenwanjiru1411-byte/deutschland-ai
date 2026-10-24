@@ -42,6 +42,7 @@ async function createTables(): Promise<void> {
     email text not null,
     email_norm text not null,
     password_hash text not null,
+    role text not null default 'person',
     created_at timestamptz not null default now()
   )`;
   await q`create unique index if not exists users_email_norm_key on users (email_norm)`;
@@ -67,6 +68,7 @@ async function createTables(): Promise<void> {
     state text not null,
     subject text not null,
     area text not null,
+    status text not null default 'received',
     message text not null,
     phone text,
     created_at timestamptz not null default now(),
@@ -75,6 +77,34 @@ async function createTables(): Promise<void> {
     reading_aid_confirmed_at timestamptz
   )`;
   await q`create index if not exists requests_user_id_idx on requests (user_id)`;
+
+  /*
+   * A NOTICE ABOUT A MISSING DOCUMENT — the owner asks, inside the app, and the
+   * person sees it on their own list.
+   *
+   * Why a table and not a column on `requests`: the owner may ask for a second
+   * document later, and the person must be able to put away the one they have
+   * already dealt with without wiping the record of it. So each notice is its own
+   * row, with its own lifetime:
+   *   - `dismissed_at` — the person closed it. It disappears from their list and
+   *     never comes back; we keep the row so the owner can see it was closed.
+   *   - `fulfilled_at` — a document was attached to that case after the notice was
+   *     created. Set by the write path, not by the person, so a notice cannot be
+   *     marked as answered by ticking something.
+   * Both NULL means open: it is what the person sees and what the owner still
+   * waits for. The case's own deletion takes its notices with it (`on delete
+   * cascade`), so nothing outlives the case it belongs to.
+   */
+  await q`create table if not exists request_notices (
+    id text primary key,
+    request_id text not null references requests(id) on delete cascade,
+    message text not null,
+    created_at timestamptz not null default now(),
+    dismissed_at timestamptz,
+    fulfilled_at timestamptz
+  )`;
+  await q`create index if not exists request_notices_request_id_idx
+          on request_notices (request_id)`;
 
   await q`create table if not exists documents (
     id text primary key,
@@ -113,6 +143,44 @@ async function createTables(): Promise<void> {
 
   await migrateAreas();
   await migrateReadingAid();
+  await migrateStatusAndRoles();
+}
+
+/**
+ * The two columns this stage adds, plus the two constraints that keep them honest
+ * on an existing database.
+ *
+ * Both columns are added the same idempotent way as every migration here, and
+ * both carry a default that is the truth for every existing row: an account that
+ * existed before this stage is a `person` (nobody was the owner), and a case that
+ * existed before this stage has been `received` and not yet handled. Neither
+ * default invents a state we cannot stand behind.
+ *
+ * The CHECK constraints are added only if they are not already there, because
+ * Postgres has no `add constraint if not exists`. They are the database's own
+ * word on the closed sets in `src/lib/cases.ts` and `src/lib/roles.ts`: a bug in
+ * the app can write a bad value only if it gets past Postgres, which it cannot.
+ */
+async function migrateStatusAndRoles(): Promise<void> {
+  const q = sql();
+
+  await q`alter table users add column if not exists role text not null default 'person'`;
+  await q`alter table requests add column if not exists status text not null default 'received'`;
+  await q`create index if not exists requests_status_idx on requests (status)`;
+
+  const constraints = await q`select conname from pg_constraint
+                              where conname in ('users_role_check',
+                                                'requests_status_check')`;
+  const present = new Set(constraints.map((row) => String(row.conname)));
+  if (!present.has("users_role_check")) {
+    await q`alter table users
+            add constraint users_role_check check (role in ('person', 'owner'))`;
+  }
+  if (!present.has("requests_status_check")) {
+    await q`alter table requests
+            add constraint requests_status_check
+            check (status in ('received', 'in_progress', 'completed'))`;
+  }
 }
 
 /**

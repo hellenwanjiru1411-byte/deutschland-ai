@@ -15,6 +15,7 @@ import {
   SUBJECT_KEYS,
   isSubjectKey,
 } from "~/lib/constants";
+import { readAsBase64 } from "~/lib/file-input";
 import { pageLocale } from "~/lib/page-locale";
 import { fillNumbers } from "~/lib/text";
 import type { AreaCode } from "~/lib/areas";
@@ -62,19 +63,6 @@ export const Route = createFileRoute("/anliegen")({
   headers: () => ({ "X-Robots-Tag": "noindex, nofollow" }),
   component: IntakePage,
 });
-
-function readAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : "");
-    };
-    reader.onerror = () => reject(new Error("read failed"));
-    reader.readAsDataURL(file);
-  });
-}
 
 function IntakePage() {
   const t = useT();

@@ -25,6 +25,8 @@ import { getCookie, setCookie } from "@tanstack/react-start/server";
 import siteConfig from "../../site.json";
 import { sql } from "~/db";
 import { areaForSubject, type AreaCode } from "~/lib/areas";
+import { DEFAULT_CASE_STATUS, type CaseStatus } from "~/lib/cases";
+import { DEFAULT_USER_ROLE, isOwnerRole, isUserRole, type UserRole } from "~/lib/roles";
 import {
   AI_ROUTE_CONNECTED,
   MAX_FILE_BYTES,
@@ -125,7 +127,17 @@ export { ensureSchema };
 
 /* ------------------------------------------------------------------ users */
 
-export type PublicUser = { id: string; name: string; email: string };
+export type PublicUser = {
+  id: string;
+  name: string;
+  email: string;
+  /**
+   * `person` or `owner`. Read from the row, never from the browser: the only way
+   * an account becomes the owner is `OWNER_EMAIL` matching its address (see
+   * `currentUser` below), and the only page that uses it is the owner's inbox.
+   */
+  role: UserRole;
+};
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -148,13 +160,24 @@ export async function createUser(input: {
   const id = randomUUID();
   const passwordHash = await hashPassword(input.password);
   try {
-    await q`insert into users (id, name, email, email_norm, password_hash)
-            values (${id}, ${input.name.trim()}, ${input.email.trim()}, ${emailNorm}, ${passwordHash})`;
+    // Every new account is a `person`. The database default says the same thing,
+    // and it is written out here so the intent is visible where the row is made.
+    await q`insert into users (id, name, email, email_norm, password_hash, role)
+            values (${id}, ${input.name.trim()}, ${input.email.trim()}, ${emailNorm},
+                    ${passwordHash}, ${DEFAULT_USER_ROLE})`;
   } catch {
     // Unique index raced with another sign-up for the same address.
     return { ok: false, code: "email_taken" };
   }
-  return { ok: true, user: { id, name: input.name.trim(), email: input.email.trim() } };
+  return {
+    ok: true,
+    user: {
+      id,
+      name: input.name.trim(),
+      email: input.email.trim(),
+      role: DEFAULT_USER_ROLE,
+    },
+  };
 }
 
 export async function authenticate(input: {
@@ -189,7 +212,7 @@ export async function authenticate(input: {
   }
 
   const rows =
-    await q`select id, name, email, password_hash from users where email_norm = ${emailNorm} limit 1`;
+    await q`select id, name, email, role, password_hash from users where email_norm = ${emailNorm} limit 1`;
   if (rows.length === 0) {
     // Same delay whether or not the account exists, so the response does not
     // reveal which email addresses have an account.
@@ -207,7 +230,12 @@ export async function authenticate(input: {
   await q`delete from login_attempts where email_norm = ${emailNorm}`;
   return {
     ok: true,
-    user: { id: String(row.id), name: String(row.name), email: String(row.email) },
+    user: {
+      id: String(row.id),
+      name: String(row.name),
+      email: String(row.email),
+      role: isUserRole(row.role) ? row.role : DEFAULT_USER_ROLE,
+    },
   };
 }
 
@@ -253,11 +281,21 @@ export async function createSession(userId: string): Promise<string> {
   return token;
 }
 
-export async function userForToken(token: string): Promise<PublicUser | null> {
+/**
+ * A signed-in account, with the normalised address kept alongside it.
+ *
+ * `emailNorm` exists for exactly one purpose — `promoteOwnerIfNamed` comparing the
+ * account with `OWNER_EMAIL` — and it never leaves the server: `PublicUser` (what
+ * the pages get) has no such field, and nothing puts it in a URL, a header or a
+ * log line.
+ */
+type SessionUser = PublicUser & { emailNorm: string };
+
+export async function userForToken(token: string): Promise<SessionUser | null> {
   if (!token || token.length < 20 || token.length > 256) return null;
   await ensureSchema();
   const q = db();
-  const rows = await q`select u.id, u.name, u.email
+  const rows = await q`select u.id, u.name, u.email, u.email_norm, u.role
                        from sessions s join users u on u.id = s.user_id
                        where s.token_hash = ${hashToken(token)} and s.expires_at > now()
                        limit 1`;
@@ -266,6 +304,8 @@ export async function userForToken(token: string): Promise<PublicUser | null> {
     id: String(rows[0].id),
     name: String(rows[0].name),
     email: String(rows[0].email),
+    role: isUserRole(rows[0].role) ? rows[0].role : DEFAULT_USER_ROLE,
+    emailNorm: String(rows[0].email_norm),
   };
 }
 
@@ -352,11 +392,12 @@ export async function saveRequest(
   const requestId = randomUUID();
   const area = areaForSubject(input.subject);
   const readingAid = input.readingAid;
-  await q`insert into requests (id, user_id, city, state, subject, area, message, phone,
-                                reading_aid_version, reading_aid_locale,
+  await q`insert into requests (id, user_id, city, state, subject, area, status, message,
+                                phone, reading_aid_version, reading_aid_locale,
                                 reading_aid_confirmed_at)
           values (${requestId}, ${input.userId}, ${input.city}, ${input.state},
-                  ${input.subject}, ${area}, ${input.message}, ${input.phone},
+                  ${input.subject}, ${area}, ${DEFAULT_CASE_STATUS}, ${input.message},
+                  ${input.phone},
                   ${readingAid ? readingAid.version : null},
                   ${readingAid ? readingAid.locale : null},
                   ${readingAid ? new Date() : null})`;
@@ -375,6 +416,184 @@ export async function saveRequest(
     });
   }
   return { id: requestId, area, documents };
+}
+
+/* ------------------------------------------------------- the case's status */
+
+/**
+ * Move one case to another status. The only place a status is written.
+ *
+ * WHO MAY CALL IT: only the owner's server function (`ownerSetCaseStatus` in
+ * `./fns`), which refuses anybody whose stored role is not `owner` before it
+ * reaches this line. This function does not authorise anything itself — like
+ * `saveRequest`, it is a write path, and the rule lives one level up where the
+ * caller is known.
+ *
+ * It answers with the case id when a row changed, and `null` when none did — a
+ * case that no longer exists, which the caller reports as "not found" rather than
+ * as a success.
+ */
+export async function setCaseStatus(input: {
+  requestId: string;
+  status: CaseStatus;
+}): Promise<string | null> {
+  await ensureSchema();
+  const q = db();
+  const rows = await q`update requests set status = ${input.status}
+                       where id = ${input.requestId}
+                       returning id`;
+  return rows.length > 0 ? String(rows[0].id) : null;
+}
+
+/* ------------------------------------------------------- deleting a case */
+
+/**
+ * DELETE A CASE AND EVERYTHING THAT BELONGS TO IT — for real, from the table.
+ *
+ * `where id = … and user_id = …` is one statement and the ownership condition is
+ * inside it: even if a caller passed someone else's case id, no row would match
+ * and nothing would be deleted. That is deliberate belt and braces, because this
+ * is the one function that removes a person's papers.
+ *
+ * WHAT GOES WITH IT: the documents (two foreign keys, both `on delete cascade` —
+ * `documents.request_id` and the area pair `documents_request_area_fkey`) and the
+ * notices about missing documents. Nothing is hidden, nothing is marked deleted,
+ * and there is no `deleted_at`: after this statement the rows are gone, which is
+ * what "I want my data deleted" has to mean. It is also why the page asks the
+ * person to confirm first, with the number of documents it is about to remove.
+ */
+export async function deleteCase(input: {
+  requestId: string;
+  userId: string;
+}): Promise<boolean> {
+  await ensureSchema();
+  const q = db();
+  const rows = await q`delete from requests
+                       where id = ${input.requestId} and user_id = ${input.userId}
+                       returning id`;
+  return rows.length > 0;
+}
+
+/* --------------------------------------------- a document added to a case */
+
+/**
+ * Add documents to a case that already exists — the "attach the missing
+ * document" path, reached from a notice on the person's own list.
+ *
+ * THE AREA IS NOT TAKEN FROM THE CALLER'S OPINION: it is read from the case by
+ * `getOwnCase` in `./access.server` (which also proves the case belongs to the
+ * signed-in person) and passed in, and the foreign key `documents_request_area_fkey`
+ * then refuses any document whose area differs from its case's. If the case has
+ * gone in between the two statements, that same foreign key fails and this
+ * answers `not_found` — the honest answer, not a document hanging in mid-air.
+ *
+ * THE READING-AID ACKNOWLEDGEMENT: an upload always carries one, so the caller
+ * refuses a document without it before reaching this line. It is stamped on the
+ * case only when the case has no acknowledgement yet (a case filed without
+ * documents); a case that already carries one keeps the wording its person
+ * actually confirmed for the documents already there.
+ *
+ * THE NOTICE IS ANSWERED HERE, not by the person: as soon as a document lands on
+ * the case, every open notice about that case is marked fulfilled. So the person
+ * cannot tick "done" without sending anything, and the owner stops waiting the
+ * moment the document arrives.
+ */
+export async function addDocumentToCase(input: {
+  requestId: string;
+  area: AreaCode;
+  documents: IncomingDocument[];
+  readingAid: { version: string; locale: string } | null;
+}): Promise<
+  | { ok: true; documents: { id: string; filename: string; originalName: string }[] }
+  | { ok: false; code: "not_found" }
+> {
+  await ensureSchema();
+  const q = db();
+  const stored: { id: string; filename: string; originalName: string }[] = [];
+
+  try {
+    for (const doc of input.documents) {
+      const documentId = randomUUID();
+      await q`insert into documents (id, request_id, area, filename, original_name,
+                                     mime_type, content_base64, size, ai_metered)
+              values (${documentId}, ${input.requestId}, ${input.area}, ${doc.filename},
+                      ${doc.originalName}, ${doc.mimeType}, ${doc.contentBase64},
+                      ${doc.size}, ${doc.aiMetered === true})`;
+      stored.push({
+        id: documentId,
+        filename: doc.filename,
+        originalName: doc.originalName,
+      });
+    }
+  } catch {
+    // The case was deleted between the accessor's read and this write, so the
+    // foreign key refused the row. Nothing is written under a case that is gone.
+    return { ok: false, code: "not_found" };
+  }
+
+  if (input.readingAid) {
+    await q`update requests
+            set reading_aid_version = coalesce(reading_aid_version, ${input.readingAid.version}),
+                reading_aid_locale = coalesce(reading_aid_locale, ${input.readingAid.locale}),
+                reading_aid_confirmed_at = coalesce(reading_aid_confirmed_at, now())
+            where id = ${input.requestId}`;
+  }
+
+  if (stored.length > 0) {
+    await q`update request_notices set fulfilled_at = now()
+            where request_id = ${input.requestId} and fulfilled_at is null`;
+  }
+
+  return { ok: true, documents: stored };
+}
+
+/* ---------------------------------------------------- notices about a case */
+
+/**
+ * The owner asks for one specific missing document. The only place a notice is
+ * created.
+ *
+ * WHO MAY CALL IT: `ownerRequestDocument` in `./fns`, which refuses anybody whose
+ * stored role is not `owner`. The notice is from us — AIE Deutschland — and the
+ * words the person reads say so (`myRequests.noticeFrom` in the language files);
+ * nothing here claims to be an authority, and no authority's name is involved.
+ */
+export async function createNotice(input: {
+  requestId: string;
+  message: string;
+}): Promise<string | null> {
+  await ensureSchema();
+  const q = db();
+  const id = randomUUID();
+  try {
+    await q`insert into request_notices (id, request_id, message)
+            values (${id}, ${input.requestId}, ${input.message})`;
+  } catch {
+    // The case does not exist (or was deleted a moment ago): the foreign key
+    // refused the row, and there is nobody to ask.
+    return null;
+  }
+  return id;
+}
+
+/**
+ * The person puts a notice away. `dismissed_at` is stamped, the row is kept.
+ *
+ * The ownership condition is not in this statement (that would mean reading
+ * `requests` from the write path); the caller checks the notice belongs to the
+ * signed-in person through the access module first, and the statement is keyed on
+ * the notice id it got back. A dismissed notice never appears again and is never
+ * re-sent: dismissing is a decision, not a snooze.
+ */
+export async function dismissNotice(input: {
+  noticeId: string;
+}): Promise<boolean> {
+  await ensureSchema();
+  const q = db();
+  const rows = await q`update request_notices set dismissed_at = now()
+                       where id = ${input.noticeId} and dismissed_at is null
+                       returning id`;
+  return rows.length > 0;
 }
 
 /* ------------------------------------------------------------ request glue */
@@ -429,15 +648,65 @@ function readSessionCookie(): string {
 /**
  * The signed-in user, or null. Never throws — a missing or broken database must
  * not stop the public pages from rendering.
+ *
+ * THE ONE PLACE AN ACCOUNT BECOMES THE OWNER. `OWNER_EMAIL` is an environment
+ * variable in the business's own secrets store. When it is set and a signed-in
+ * account's normalised address equals it, the stored role is set to `owner` once
+ * and from then on read from the row. Nothing else in the codebase promotes
+ * anybody, no page can ask for the role, and the browser never sends it.
+ *
+ * WITH `OWNER_EMAIL` UNSET, NOBODY IS EVER PROMOTED: the inbox answers "not found"
+ * to every account that has not already been given the role. An account that
+ * already holds `owner` keeps it — the stored role is the truth, and taking it
+ * away is a deliberate change to the row, not a side effect of a missing variable.
  */
 export async function currentUser(): Promise<PublicUser | null> {
   if (!dbConfigured()) return null;
   const token = readSessionCookie();
   if (!token) return null;
   try {
-    return await userForToken(token);
+    const user = await userForToken(token);
+    if (!user) return null;
+    const role = await promoteOwnerIfNamed(user);
+    const { emailNorm: _emailNorm, ...publicUser } = user;
+    return { ...publicUser, role };
   } catch {
     return null;
+  }
+}
+
+/**
+ * `OWNER_EMAIL`, normalised, or null when it is not set or is not an address.
+ *
+ * Read from the environment like `PILOT_DOCUMENT_CAP` and `BOOKING_URL`; a value
+ * that is not a plain address is ignored rather than half-trusted, so a typo in
+ * configuration cannot quietly make some other account the owner.
+ */
+export function ownerEmail(): string | null {
+  const raw = process.env.OWNER_EMAIL?.trim();
+  if (!raw) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) return null;
+  return normalizeEmail(raw);
+}
+
+/**
+ * Give this account the owner role if `OWNER_EMAIL` names it, and answer with the
+ * role to use for this request either way.
+ *
+ * A failed update does not throw: the answer is then simply the role already on
+ * the row (`person`), which is the safe answer — the person keeps seeing their own
+ * cases, and the inbox stays closed.
+ */
+async function promoteOwnerIfNamed(user: SessionUser): Promise<UserRole> {
+  if (user.role === "owner") return "owner";
+  const named = ownerEmail();
+  if (!named || named !== user.emailNorm) return user.role;
+  try {
+    const q = db();
+    await q`update users set role = 'owner' where id = ${user.id}`;
+    return "owner";
+  } catch {
+    return user.role;
   }
 }
 
@@ -507,6 +776,13 @@ export function contactEmail(): string | null {
 export type Bootstrap = {
   locale: Locale;
   user: { name: string; email: string } | null;
+  /**
+   * Is the signed-in account the owner? It decides exactly one thing: whether the
+   * header offers a link to the private inbox. It is NOT the access rule — the
+   * inbox checks the role on the server for every request, so a browser that
+   * flipped this boolean would get a 404 page, not a case list.
+   */
+  isOwner: boolean;
   bookingUrl: string | null;
   contactEmail: string | null;
 };
@@ -516,6 +792,7 @@ export async function bootstrap(): Promise<Bootstrap> {
   return {
     locale: currentLocale(),
     user: sessionUser ? { name: sessionUser.name, email: sessionUser.email } : null,
+    isOwner: isOwnerRole(sessionUser?.role),
     bookingUrl: bookingUrl(),
     contactEmail: contactEmail(),
   };

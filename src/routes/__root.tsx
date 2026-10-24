@@ -63,13 +63,13 @@ function RootError({ error }: ErrorComponentProps) {
 }
 
 function RootComponent() {
-  const { locale, user, bookingUrl, contactEmail } = Route.useLoaderData();
+  const { locale, user, isOwner, bookingUrl, contactEmail } = Route.useLoaderData();
   // The language's own description — `lang` and `dir` come from the registry, so
   // a right-to-left language mirrors the document without any change here.
   const language = languageOf(locale);
   return (
     <RootDocument language={language}>
-      <AppProvider value={{ locale, user, bookingUrl, contactEmail }}>
+      <AppProvider value={{ locale, user, isOwner, bookingUrl, contactEmail }}>
         {/*
           SAFETY NETS. Three layers, each for a different failure:
             - a route's own error boundary (see the routes) shows the error page

@@ -18,12 +18,25 @@ import {
   STATES,
   isSubjectKey,
 } from "~/lib/constants";
+import {
+  NOTICE_MAX_LENGTH,
+  NOTICE_MIN_LENGTH,
+  isCaseStatus,
+  type CaseStatus,
+} from "~/lib/cases";
+import { isOwnerRole } from "~/lib/roles";
 import { getDictionary, type Locale } from "~/i18n";
 import type { AreaCode } from "~/lib/areas";
 
 export type Bootstrap = {
   locale: Locale;
   user: { name: string; email: string } | null;
+  /**
+   * Is the signed-in account the owner? It decides whether the header offers the
+   * link to the private inbox — nothing else. The inbox checks the role on the
+   * server for every request, so a browser that flipped this flag would get a 404.
+   */
+  isOwner: boolean;
   bookingUrl: string | null;
   contactEmail: string | null;
 };
@@ -448,6 +461,427 @@ export const submitIntake = createServerFn({ method: "POST" })
       }
 
       return { ok: true, area: stored.area, documents: stored.documents };
+    } catch {
+      return { ok: false, error: t.errors.dbUnavailable, fields: {} };
+    }
+  });
+
+/* ------------------------------------------- the person's own request list */
+
+/** One document, as the person's own list shows it. */
+export type MyDocument = {
+  id: string;
+  /** The person's own filename, shown as text. The download uses the id. */
+  originalName: string;
+  size: number;
+  createdAt: string;
+};
+
+/** One notice about a missing document, as the person's own list shows it. */
+export type MyNotice = {
+  id: string;
+  requestId: string;
+  message: string;
+  createdAt: string;
+};
+
+/** One of the person's own cases, with everything their list shows about it. */
+export type MyCase = {
+  id: string;
+  /** The area of life it is filed under — the code; the page looks up the label. */
+  area: AreaCode;
+  subject: string;
+  status: CaseStatus;
+  createdAt: string;
+  message: string;
+  documents: MyDocument[];
+  /** Only the notices that are still open: dismissed and answered ones are gone. */
+  notices: MyNotice[];
+};
+
+export type MyRequestsData = {
+  locale: Locale;
+  user: { name: string; email: string } | null;
+  cases: MyCase[];
+  /** Which wording of the reading-aid acknowledgement an upload here is confirmed against. */
+  readingAidVersion: string;
+  contactEmail: string | null;
+};
+
+/**
+ * THE PERSON'S OWN LIST — every case they have submitted, newest first.
+ *
+ * The cases, the documents and the notices all come from `./access.server`, and
+ * from nowhere else: that module requires the viewer, and its SQL carries the
+ * person's id, so a list built from this function can only ever contain rows of
+ * the person asking. There is no parameter a browser could send to widen it.
+ */
+export const getMyRequests = createServerFn({ method: "GET" }).handler(
+  async (): Promise<MyRequestsData> => {
+    const server = await import("./data.server");
+    const locale = server.currentLocale();
+    const empty: MyRequestsData = {
+      locale,
+      user: null,
+      cases: [],
+      readingAidVersion: READING_AID_VERSION,
+      contactEmail: server.contactEmail(),
+    };
+
+    const user = await server.currentUser();
+    if (!user || !server.dbConfigured()) return empty;
+
+    const access = await import("./access.server");
+    const viewer = access.viewerForUser(user);
+    const [cases, documents, notices] = await Promise.all([
+      access.listOwnCases(viewer),
+      access.listDocumentsForOwnCases(viewer),
+      access.listOpenNoticesForOwnCases(viewer),
+    ]);
+
+    const documentsByCase = new Map<string, MyDocument[]>();
+    for (const document of documents) {
+      const bucket = documentsByCase.get(document.requestId);
+      const shown: MyDocument = {
+        id: document.id,
+        originalName: document.originalName,
+        size: document.size,
+        createdAt: document.createdAt,
+      };
+      if (bucket) bucket.push(shown);
+      else documentsByCase.set(document.requestId, [shown]);
+    }
+
+    const noticesByCase = new Map<string, MyNotice[]>();
+    for (const notice of notices) {
+      const shown: MyNotice = {
+        id: notice.id,
+        requestId: notice.requestId,
+        message: notice.message,
+        createdAt: notice.createdAt,
+      };
+      const bucket = noticesByCase.get(notice.requestId);
+      if (bucket) bucket.push(shown);
+      else noticesByCase.set(notice.requestId, [shown]);
+    }
+
+    return {
+      ...empty,
+      user: { name: user.name, email: user.email },
+      cases: cases.map((item) => ({
+        id: item.id,
+        area: item.area,
+        subject: item.subject,
+        status: item.status,
+        createdAt: item.createdAt,
+        message: item.message,
+        documents: documentsByCase.get(item.id) ?? [],
+        notices: noticesByCase.get(item.id) ?? [],
+      })),
+    };
+  },
+);
+
+/** The answer to an action the person takes on their own list. */
+export type ActionResult =
+  | { ok: true }
+  | { ok: false; error?: string; fields: FieldErrors };
+
+/**
+ * DELETE ONE OF MY CASES — the case, its documents and the notices about it.
+ *
+ * The rows are deleted, not hidden (`deleteCase` in `./data.server` is one DELETE
+ * with the person's id in its WHERE clause). The page asks the person to confirm
+ * first, and says what will go: the case's subject and date, and how many
+ * documents are attached to it.
+ */
+export const deleteMyRequest = createServerFn({ method: "POST" })
+  .validator((input: { requestId: string }) => input)
+  .handler(async ({ data: input }): Promise<ActionResult> => {
+    const server = await import("./data.server");
+    const t = getDictionary(server.currentLocale());
+
+    const user = await server.currentUser();
+    if (!user) return { ok: false, error: t.errors.notSignedIn, fields: {} };
+
+    const requestId = typeof input.requestId === "string" ? input.requestId : "";
+    if (!requestId) return { ok: false, error: t.errors.caseNotFound, fields: {} };
+
+    try {
+      const deleted = await server.deleteCase({ requestId, userId: user.id });
+      if (!deleted) return { ok: false, error: t.errors.caseNotFound, fields: {} };
+      return { ok: true };
+    } catch {
+      return { ok: false, error: t.errors.dbUnavailable, fields: {} };
+    }
+  });
+
+/**
+ * ATTACH A DOCUMENT TO ONE OF MY CASES — the way a person answers a notice.
+ *
+ * The same upload gate as the intake form (`./uploads.server`: magic bytes decide
+ * the type, the real byte length is measured, images are rebuilt from their
+ * pixels), the same reading-aid acknowledgement before anything is stored, and the
+ * same pilot rule that storing is unlimited — no count is consulted here at all.
+ *
+ * The case is read first through the access module, which proves it belongs to the
+ * signed-in person and hands back its area; a case id belonging to somebody else
+ * is simply "not found".
+ */
+export const attachDocumentToMyRequest = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      requestId: string;
+      readingAidAck: boolean;
+      documents: DocumentPayload[];
+    }) => input,
+  )
+  .handler(async ({ data: input }): Promise<IntakeResult> => {
+    const server = await import("./data.server");
+    const locale = server.currentLocale();
+    const t = getDictionary(locale);
+    const fields: FieldErrors = {};
+
+    const requestId = typeof input.requestId === "string" ? input.requestId : "";
+    const documents = Array.isArray(input.documents) ? input.documents : [];
+    if (documents.length === 0) fields.documents = t.errors.fileRequired;
+    if (documents.length > MAX_FILES) fields.documents = t.errors.filesTooMany;
+    if (documents.length > 0 && input.readingAidAck !== true)
+      fields.readingAid = t.errors.readingAidRequired;
+
+    const uploads = await import("./uploads.server");
+    const prepared = await uploads.prepareDocuments(documents);
+    if (!prepared.ok) fields.documents = uploadRefusalMessage(prepared.code, t);
+
+    if (Object.keys(fields).length > 0) return { ok: false, fields };
+    if (!server.dbConfigured())
+      return { ok: false, error: t.errors.dbUnavailable, fields: {} };
+
+    const user = await server.currentUser();
+    if (!user) return { ok: false, error: t.errors.notSignedIn, fields: {} };
+
+    try {
+      const access = await import("./access.server");
+      const own = await access.getOwnCase(access.viewerForUser(user), requestId);
+      if (!own) return { ok: false, error: t.errors.caseNotFound, fields: {} };
+
+      const stored = await server.addDocumentToCase({
+        requestId: own.id,
+        // The case's own area, read a moment ago — a document never chooses one.
+        area: own.area,
+        documents: prepared.ok
+          ? prepared.documents.map((document) => ({
+              filename: document.filename,
+              originalName: document.originalName,
+              mimeType: document.mimeType,
+              size: document.size,
+              contentBase64: document.contentBase64,
+              /*
+               * The same switch as the intake form: does this document go to an AI
+               * provider? Today `false` — no model is connected — so an attached
+               * document is stored and never counted against the pilot meter.
+               */
+              aiMetered: server.aiMeteringEnabled(),
+            }))
+          : [],
+        readingAid: { version: READING_AID_VERSION, locale },
+      });
+      if (!stored.ok) return { ok: false, error: t.errors.caseNotFound, fields: {} };
+
+      return { ok: true, area: own.area, documents: stored.documents };
+    } catch {
+      return { ok: false, error: t.errors.dbUnavailable, fields: {} };
+    }
+  });
+
+/**
+ * PUT ONE NOTICE AWAY. The person's decision, and it holds: a dismissed notice
+ * never appears again and is never re-sent (the row keeps `dismissed_at`).
+ */
+export const dismissMyNotice = createServerFn({ method: "POST" })
+  .validator((input: { noticeId: string }) => input)
+  .handler(async ({ data: input }): Promise<ActionResult> => {
+    const server = await import("./data.server");
+    const t = getDictionary(server.currentLocale());
+
+    const user = await server.currentUser();
+    if (!user) return { ok: false, error: t.errors.notSignedIn, fields: {} };
+
+    const noticeId = typeof input.noticeId === "string" ? input.noticeId : "";
+    try {
+      const access = await import("./access.server");
+      const notice = await access.getOwnNotice(access.viewerForUser(user), noticeId);
+      if (!notice) return { ok: false, error: t.errors.caseNotFound, fields: {} };
+      await server.dismissNotice({ noticeId: notice.id });
+      return { ok: true };
+    } catch {
+      return { ok: false, error: t.errors.dbUnavailable, fields: {} };
+    }
+  });
+
+/* ------------------------------------------------- the owner's inbox */
+
+/** One document in the owner's view. */
+export type InboxDocument = {
+  id: string;
+  originalName: string;
+  size: number;
+  createdAt: string;
+};
+
+/** One notice in the owner's view, including the ones the person has closed. */
+export type InboxNotice = {
+  id: string;
+  message: string;
+  createdAt: string;
+  dismissedAt: string | null;
+  fulfilledAt: string | null;
+};
+
+/** One case in the owner's casework view — every person's cases, nothing hidden. */
+export type InboxCase = {
+  id: string;
+  area: AreaCode;
+  subject: string;
+  status: CaseStatus;
+  createdAt: string;
+  message: string;
+  city: string;
+  state: string;
+  phone: string | null;
+  /** The person's own details, as they gave them. There is no other record of them. */
+  person: { name: string; email: string };
+  documents: InboxDocument[];
+  notices: InboxNotice[];
+};
+
+/**
+ * What the inbox route got back.
+ *
+ * Three states, because the route has to answer differently for each and the
+ * difference must be made on the server: signed out → 307 to the sign-in page,
+ * signed in but not the owner → 404, owner → the cases. `forbidden` carries no
+ * data at all, so a person who calls the server function directly learns nothing.
+ */
+export type OwnerInbox =
+  | { state: "signed_out" }
+  | { state: "forbidden" }
+  | { state: "ok"; locale: Locale; cases: InboxCase[] };
+
+/**
+ * THE OWNER'S INBOX — every case of every person, newest first.
+ *
+ * Only an account whose stored role is `owner` gets `state: "ok"`; everybody else
+ * gets `forbidden`, and the page turns that into a 404 in the server response. The
+ * read itself goes through `listAllCasesForOwner`, which takes an `OwnerViewer`
+ * that only `viewerForOwner` can build.
+ */
+export const getOwnerInbox = createServerFn({ method: "GET" }).handler(
+  async (): Promise<OwnerInbox> => {
+    const server = await import("./data.server");
+    const user = await server.currentUser();
+    if (!user) return { state: "signed_out" };
+    if (!isOwnerRole(user.role) || !server.dbConfigured()) return { state: "forbidden" };
+
+    const access = await import("./access.server");
+    const cases = await access.listAllCasesForOwner(access.viewerForOwner(user));
+
+    return {
+      state: "ok",
+      locale: server.currentLocale(),
+      cases: cases.map((item) => ({
+        id: item.id,
+        area: item.area,
+        subject: item.subject,
+        status: item.status,
+        createdAt: item.createdAt,
+        message: item.message,
+        city: item.city,
+        state: item.state,
+        phone: item.phone,
+        person: item.person,
+        documents: item.documents.map((document) => ({
+          id: document.id,
+          originalName: document.originalName,
+          size: document.size,
+          createdAt: document.createdAt,
+        })),
+        notices: item.notices.map((notice) => ({
+          id: notice.id,
+          message: notice.message,
+          createdAt: notice.createdAt,
+          dismissedAt: notice.dismissedAt,
+          fulfilledAt: notice.fulfilledAt,
+        })),
+      })),
+    };
+  },
+);
+
+/**
+ * MARK A CASE AS BEING HANDLED OR COMPLETED — the owner's own bookkeeping.
+ *
+ * The role is checked here, on the server, from the session cookie: a person who
+ * called this endpoint directly would be refused before the write path is
+ * reached, whatever their browser showed them.
+ */
+export const ownerSetCaseStatus = createServerFn({ method: "POST" })
+  .validator((input: { requestId: string; status: string }) => input)
+  .handler(async ({ data: input }): Promise<ActionResult> => {
+    const server = await import("./data.server");
+    const t = getDictionary(server.currentLocale());
+
+    const user = await server.currentUser();
+    if (!user) return { ok: false, error: t.errors.notSignedIn, fields: {} };
+    if (!isOwnerRole(user.role))
+      return { ok: false, error: t.errors.caseNotFound, fields: {} };
+
+    if (!isCaseStatus(input.status))
+      return { ok: false, error: t.errors.generic, fields: {} };
+    try {
+      const changed = await server.setCaseStatus({
+        requestId: String(input.requestId ?? ""),
+        status: input.status,
+      });
+      if (!changed) return { ok: false, error: t.errors.caseNotFound, fields: {} };
+      return { ok: true };
+    } catch {
+      return { ok: false, error: t.errors.dbUnavailable, fields: {} };
+    }
+  });
+
+/**
+ * ASK A PERSON FOR ONE MISSING DOCUMENT — from us, inside the app.
+ *
+ * No e-mail, no authority, no letter: the notice is a row the person sees on their
+ * own list, in their own language, with a way to attach the document and a way to
+ * put the notice away. The words on the person's side say it is from AIE
+ * Deutschland (`myRequests.noticeFrom`), because that is who is asking.
+ */
+export const ownerRequestDocument = createServerFn({ method: "POST" })
+  .validator((input: { requestId: string; message: string }) => input)
+  .handler(async ({ data: input }): Promise<ActionResult> => {
+    const server = await import("./data.server");
+    const t = getDictionary(server.currentLocale());
+    const fields: FieldErrors = {};
+
+    const user = await server.currentUser();
+    if (!user) return { ok: false, error: t.errors.notSignedIn, fields: {} };
+    if (!isOwnerRole(user.role))
+      return { ok: false, error: t.errors.caseNotFound, fields: {} };
+
+    const message = String(input.message ?? "").trim();
+    if (message.length < NOTICE_MIN_LENGTH) fields.message = t.errors.noticeTooShort;
+    if (message.length > NOTICE_MAX_LENGTH) fields.message = t.errors.noticeTooLong;
+    if (Object.keys(fields).length > 0) return { ok: false, fields };
+
+    try {
+      const created = await server.createNotice({
+        requestId: String(input.requestId ?? ""),
+        message,
+      });
+      if (!created) return { ok: false, error: t.errors.caseNotFound, fields: {} };
+      return { ok: true };
     } catch {
       return { ok: false, error: t.errors.dbUnavailable, fields: {} };
     }

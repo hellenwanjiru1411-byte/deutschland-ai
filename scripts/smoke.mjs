@@ -552,7 +552,12 @@ await step("dashboard, right to left", async () => {
   // Arabic mirrors the whole layout, so the dashboard and its cards may only use
   // logical utilities (`ms-`, `pe-`, `text-start`, …). A physical one would stay
   // on the left when the page turns around — see `src/routes/dashboard.tsx`.
-  const FILES = ["src/routes/dashboard.tsx", "src/components/capabilities.tsx"];
+  const FILES = [
+    "src/routes/dashboard.tsx",
+    "src/components/capabilities.tsx",
+    "src/routes/meine-anliegen.tsx",
+    "src/routes/postfach.tsx",
+  ];
   const PHYSICAL = [
     "ml-",
     "mr-",
@@ -575,7 +580,7 @@ await step("dashboard, right to left", async () => {
     }
   }
   expect(
-    "the dashboard uses logical direction utilities only",
+    "the dashboard, the request list and the inbox use logical direction utilities only",
     offenders.length === 0,
     offenders.length > 0 ? offenders.join(", ") : FILES.length + " files, no left/right",
   );
@@ -639,6 +644,217 @@ await step("one read path", async () => {
     writeOffenders.length > 0
       ? `also in ${writeOffenders.join(", ")}`
       : WRITE_ALLOWED.join(", "),
+  );
+});
+
+/* --------------------------------------- the request list and the inbox */
+
+/*
+ * STAGE 10 — the person's own list and the owner's private inbox.
+ *
+ * What is checked here, and why each one would fail a real promise if it broke:
+ *   - a signed-out visitor gets the sign-in redirect from both private pages, in
+ *     the server response (not from a client-side guard);
+ *   - every language can label the three case statuses and carries the whole of
+ *     both new sections, so a half-translated page cannot ship;
+ *   - the notice a person receives says it is from US, in every language;
+ *   - no authority's name appears in either section, and the German inbox says in
+ *     so many words that it is not an authority;
+ *   - the owner-only rule is on the server (a role check in the server functions
+ *     and an owner viewer in the access module), and the page answers "not found"
+ *     rather than drawing an empty inbox;
+ *   - deleting really deletes (a DELETE statement, and no `deleted_at` column that
+ *     would turn it into a hide).
+ */
+await step("the request list and the owner's inbox", async () => {
+  const root = new URL("../", import.meta.url).pathname;
+
+  for (const [label, path] of [
+    ["/meine-anliegen", "/meine-anliegen"],
+    ["/postfach", "/postfach"],
+  ]) {
+    const response = await get(path, { redirect: "manual" });
+    expect(
+      `GET ${label} redirects a signed-out visitor to /anmelden`,
+      response.status === 307 && (response.location ?? "").includes("/anmelden"),
+      `status ${response.status}, location ${response.location ?? "-"}`,
+    );
+  }
+
+  // German authority names must not appear in either section: this is our own
+  // casework, not a console for an office.
+  const AUTHORITY_NAMES = [
+    "Bürgeramt",
+    "Einwohnermeldeamt",
+    "Ausländerbehörde",
+    "Finanzamt",
+    "Jobcenter",
+    "Sozialamt",
+    "Standesamt",
+    "Bundesamt",
+    "Krankenkasse",
+    "Amtsgericht",
+  ];
+
+  for (const language of LANGUAGES) {
+    const { code, dictionary: t } = language;
+
+    const missingStatuses = ["received", "in_progress", "completed"].filter(
+      (status) =>
+        typeof t.caseStatus?.[status] !== "string" ||
+        t.caseStatus[status].trim().length === 0,
+    );
+    expect(
+      `every case status has a ${code} label`,
+      missingStatuses.length === 0 && typeof t.caseStatus?.label === "string",
+      missingStatuses.length > 0 ? `missing ${missingStatuses.join(", ")}` : "3 labels",
+    );
+
+    const MY_KEYS = [
+      "title",
+      "lead",
+      "receivedLabel",
+      "areaLabel",
+      "documentsTitle",
+      "noDocuments",
+      "download",
+      "emptyTitle",
+      "emptyLead",
+      "emptyCta",
+      "deleteCta",
+      "deleteConfirmTitle",
+      "deleteConfirmNote",
+      "deleteConfirmYes",
+      "deleteCancel",
+      "deleted",
+      "noticeTitle",
+      "noticeFrom",
+      "noticeCaseLabel",
+      "noticeFileLabel",
+      "noticeAttachSubmit",
+      "noticeAttached",
+      "noticeDismiss",
+      "noticeDismissHint",
+    ];
+    const missingMy = MY_KEYS.filter(
+      (key) =>
+        typeof t.myRequests?.[key] !== "string" ||
+        t.myRequests[key].trim().length === 0,
+    );
+    expect(
+      `the ${code} request list has all of its copy`,
+      missingMy.length === 0,
+      missingMy.length > 0 ? `missing ${missingMy.join(", ")}` : `${MY_KEYS.length} strings`,
+    );
+
+    const INBOX_KEYS = [
+      "title",
+      "lead",
+      "honestyTitle",
+      "honesty",
+      "emptyTitle",
+      "emptyLead",
+      "personLabel",
+      "emailLabel",
+      "cityLabel",
+      "stateLabel",
+      "subjectLabel",
+      "areaLabel",
+      "receivedLabel",
+      "statusLabel",
+      "messageLabel",
+      "documentsLabel",
+      "noDocuments",
+      "download",
+      "markInProgress",
+      "markCompleted",
+      "markReceived",
+      "noticeTitle",
+      "noticeIntro",
+      "noticeField",
+      "noticeHint",
+      "noticeSubmit",
+      "noticeSent",
+      "noticesTitle",
+      "noticeStateOpen",
+      "noticeStateDismissed",
+      "noticeStateFulfilled",
+      "noNotices",
+    ];
+    const missingInbox = INBOX_KEYS.filter(
+      (key) =>
+        typeof t.inbox?.[key] !== "string" || t.inbox[key].trim().length === 0,
+    );
+    expect(
+      `the ${code} inbox has all of its copy`,
+      missingInbox.length === 0,
+      missingInbox.length > 0 ? `missing ${missingInbox.join(", ")}` : `${INBOX_KEYS.length} strings`,
+    );
+
+    // THE NOTICE IS FROM US. Wherever it is shown, it names the business — so it
+    // can never read as if an authority had asked for the document.
+    expect(
+      `the ${code} notice says it comes from ${t.brand.name}`,
+      typeof t.myRequests?.noticeFrom === "string" &&
+        t.myRequests.noticeFrom.includes(t.brand.name),
+      `"${t.myRequests?.noticeFrom ?? "-"}"`,
+    );
+
+    const sectionText = JSON.stringify({ ...t.myRequests, ...t.inbox });
+    const named = AUTHORITY_NAMES.filter((name) => sectionText.includes(name));
+    expect(
+      `the ${code} request list and inbox name no authority`,
+      named.length === 0,
+      named.length > 0 ? `contains ${named.join(", ")}` : "none of " + AUTHORITY_NAMES.length,
+    );
+  }
+
+  // German governs, so the fact that matters most is checked in German: the inbox
+  // says in so many words that it is not an authority.
+  const de = DEFAULT.dictionary;
+  expect(
+    "the German inbox says plainly that it is not an authority",
+    /kein Amt/i.test(de.inbox.honesty) && /keine Behörde/i.test(de.inbox.honesty),
+    "kein Amt, keine Behörde",
+  );
+
+  // THE OWNER-ONLY RULE LIVES ON THE SERVER. A hidden link is not a rule.
+  const fns = readFileSync(join(root, "src/server/fns.ts"), "utf8");
+  expect(
+    "the owner's server functions check the stored role",
+    (fns.match(/isOwnerRole\(user\.role\)/g) ?? []).length >= 3,
+    "owner inbox, status and notice",
+  );
+  const access = readFileSync(join(root, "src/server/access.server.ts"), "utf8");
+  expect(
+    "only an owner viewer can read every person's cases",
+    /export function viewerForOwner/.test(access) &&
+      /an owner view needs an owner account/.test(access) &&
+      /export async function listAllCasesForOwner/.test(access),
+    "viewerForOwner refuses every other account",
+  );
+  const inboxPage = readFileSync(join(root, "src/routes/postfach.tsx"), "utf8");
+  expect(
+    "the inbox answers not-found to a signed-in account that is not the owner",
+    /throw notFound\(\)/.test(inboxPage) && /state === "forbidden"/.test(inboxPage),
+    "notFound() before anything renders",
+  );
+
+  // DELETING MEANS DELETING. A DELETE statement and no `deleted_at` column: if a
+  // hide column ever appears, this check fails and someone has to say why.
+  const writes = readFileSync(join(root, "src/server/data.server.ts"), "utf8");
+  const schema = readFileSync(join(root, "src/server/schema.server.ts"), "utf8");
+  expect(
+    "deleting a request deletes the rows, and nothing is soft-deleted",
+    /delete from requests/.test(writes) &&
+      !/deleted_at/.test(schema) &&
+      !/hidden_at/.test(schema),
+    "delete from requests, no deleted_at",
+  );
+  expect(
+    "the delete is keyed on the person's own id",
+    /delete from requests[\s\S]{0,200}user_id = \$\{input\.userId\}/.test(writes),
+    "user_id in the WHERE clause",
   );
 });
 

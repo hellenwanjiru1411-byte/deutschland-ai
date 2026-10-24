@@ -1,3 +1,5 @@
+import type { CaseStatus } from "~/lib/cases";
+
 import type { Dictionary } from "./de";
 
 /**
@@ -30,6 +32,8 @@ export const en: Dictionary = {
     signInTitle: "Sign in — AIE Deutschland",
     intakeTitle: "Describe your request — AIE Deutschland",
     dashboardTitle: "Your overview — AIE Deutschland",
+    myRequestsTitle: "My requests — AIE Deutschland",
+    inboxTitle: "Inbox — AIE Deutschland",
   },
   nav: {
     label: "Navigation",
@@ -41,6 +45,8 @@ export const en: Dictionary = {
     signingOut: "Signing out …",
     intake: "Describe your request",
     dashboard: "Overview",
+    myRequests: "My requests",
+    inbox: "Inbox",
     home: "Home",
   },
   lang: {
@@ -271,6 +277,7 @@ export const en: Dictionary = {
       emptyLead:
         "As soon as you describe one, it appears here — sorted into the area of life it belongs to.",
       emptyCta: "Describe your request",
+      listCta: "See all requests",
     },
   },
   /*
@@ -292,6 +299,109 @@ export const en: Dictionary = {
     reachedBody:
       "We have put as many documents to an AI this month as we can pay for ourselves during the pilot. This limit is ours, not yours: you are not charged anything, and documents you have already stored stay with us. The human route stays open — describe your request without documents and we will take care of it. AI reviews are available again next calendar month.",
     contactCta: "Write to us directly",
+  },
+  /*
+   * THE STATUS OF A CASE, in plain words. Three states and no more: we have it, we
+   * are working on it, our part is done. "Completed" means WE have finished, never
+   * that a decision has been made anywhere.
+   */
+  caseStatus: {
+    label: "Status",
+    received: "Received",
+    in_progress: "In progress",
+    completed: "Completed",
+  } satisfies { label: string } & Record<CaseStatus, string>,
+  /*
+   * THE PERSON'S OWN LIST (`/meine-anliegen`) — their own cases, newest first,
+   * with the area of life, the date, the status, the documents and a way to delete
+   * a case for good. The delete confirmation names what goes, because deleting
+   * without saying what is a decision made in the dark.
+   */
+  myRequests: {
+    title: "My requests",
+    lead: "Every request you have described to us — the newest first. Each one shows its area of life, the date, the status and your documents.",
+    receivedLabel: "Received on",
+    areaLabel: "Area of life",
+    messageLabel: "Your message",
+    documentsTitle: "Documents",
+    noDocuments: "No documents attached.",
+    download: "Download",
+    emptyTitle: "You have not described a request to us yet.",
+    emptyLead:
+      "As soon as you describe one, it appears here — with its area of life, the date, the status and your documents.",
+    emptyCta: "Describe your request",
+    backToDashboard: "Back to the overview",
+    deleteCta: "Delete request",
+    deleteConfirmTitle: "Delete this request for good?",
+    deleteSubject: "Request",
+    deleteDate: "Date",
+    deleteArea: "Area of life",
+    deleteDocuments: "Documents",
+    deleteConfirmNote:
+      "This deletes the request and all of its documents — from us, for good. We cannot undo it.",
+    deleteConfirmYes: "Yes, delete for good",
+    deleteCancel: "Cancel",
+    deleting: "Deleting …",
+    deleted: "Your request and its documents have been deleted.",
+    noticeTitle: "We still need a document",
+    // THE NOTICE IS FROM US. It never reads as if an authority had asked, and no
+    // authority's name or logo appears anywhere near it.
+    noticeFrom: "Message from AIE Deutschland",
+    noticeCaseLabel: "About your request",
+    noticeAttachTitle: "Add the document",
+    noticeFileLabel: "Choose a file",
+    noticeAttachSubmit: "Send the document",
+    noticeAttaching: "Sending …",
+    noticeAttached: "Thank you — your document has arrived.",
+    noticeDismiss: "Hide this",
+    noticeDismissHint: "You can hide this request. It will not come back.",
+    noticeDismissed: "Hidden.",
+  },
+  /*
+   * THE OWNER'S INBOX (`/postfach`) — the owner's own casework view, and the copy
+   * has to say plainly that it is not an officer console: no authority account, no
+   * authority's name or logo, no check against official records, no insurer or
+   * hospital connection. What the owner sees is what the person sent us.
+   */
+  inbox: {
+    title: "Inbox",
+    lead: "Every request that has come in — the newest first. You handle them here yourself.",
+    honestyTitle: "Our own inbox",
+    honesty:
+      "This is where we work on the requests people describe to us. It is not an office and not an authority: there is no account for authorities, no check against official records, and no connection to health insurers or hospitals. Everything here was sent to us by the person themselves.",
+    emptyTitle: "No requests yet.",
+    emptyLead: "As soon as someone describes a request, it appears here.",
+    personLabel: "From",
+    emailLabel: "E-mail",
+    phoneLabel: "Phone",
+    cityLabel: "Town or city",
+    stateLabel: "Federal state",
+    subjectLabel: "Request",
+    areaLabel: "Area of life",
+    receivedLabel: "Received",
+    statusLabel: "Status",
+    messageLabel: "Message",
+    documentsLabel: "Documents",
+    noDocuments: "No documents.",
+    download: "Download",
+    markInProgress: "Start working on it",
+    markCompleted: "Mark as completed",
+    markReceived: "Back to “received”",
+    statusSaving: "Saving …",
+    noticeTitle: "Ask for a document",
+    noticeIntro:
+      "The person sees this sentence in their own area — as a message from AIE Deutschland, not from an authority. No e-mail is sent.",
+    noticeField: "Which document is missing?",
+    noticeHint:
+      "Short and specific, for example: “Please upload the landlord's confirmation (Wohnungsgeberbestätigung).”",
+    noticeSubmit: "Ask for it",
+    noticeSending: "Sending the request …",
+    noticeSent: "Asked — the person sees it in their own area.",
+    noticesTitle: "Documents asked for",
+    noticeStateOpen: "open",
+    noticeStateDismissed: "hidden by the person",
+    noticeStateFulfilled: "arrived",
+    noNotices: "Nothing asked for yet.",
   },
   // THE SEVEN CAPABILITIES — one card each, in the business plan's order. See
   // the German file for what `body`, `aiNote` and `humanNote` may and may not say.
@@ -369,6 +479,11 @@ export const en: Dictionary = {
     consentRequired: "Please agree to us processing your details.",
     readingAidRequired:
       "Please confirm the reading-aid notice before you send documents.",
+    fileRequired: "Please choose a file.",
+    caseNotFound: "This request no longer exists.",
+    noticeTooShort:
+      "Please say in at least 10 characters which document is missing.",
+    noticeTooLong: "Please keep it shorter — 600 characters at most.",
     capReached:
       "AI reviews are used up for this month: during the pilot we pay for every document we put to an AI ourselves, so the number per person is limited. You are not charged anything, and the documents you have already stored stay with us. The human route stays open — describe your request without documents and we will take care of it. AI reviews are available again next calendar month.",
     fileType:

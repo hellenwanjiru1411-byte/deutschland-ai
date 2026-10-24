@@ -9,11 +9,15 @@
  * `documentResponseHeaders` in `src/server/uploads.server.ts` — written next to the
  * decision about what the file is, so the two cannot drift apart.
  *
- * WHO MAY READ IT: the person who owns the case, and nobody else. The check is not
- * in this file: it is `getDocumentForDownload` in `src/server/access.server.ts`,
- * the only place that reads document bytes, which joins the document to its case
- * and requires the case to belong to the signed-in person. Anyone else gets 404 —
- * not 403, because a stranger should not learn whether an id exists.
+ * WHO MAY READ IT: the person who owns the case, and the owner handling it during
+ * the pilot — nobody else. The check is not in this file: it is
+ * `getDocumentForDownload` (a person's own document) or `getDocumentForOwner` (any
+ * document, for the owner) in `src/server/access.server.ts`, the only place that
+ * reads document bytes. The person's read joins the document to its case and
+ * requires the case to belong to the signed-in person; the owner's read is
+ * reachable only with an `OwnerViewer`, which only `viewerForOwner` builds, and
+ * that throws for any account whose stored role is not `owner`. Anyone else gets
+ * 404 — not 403, because a stranger should not learn whether an id exists.
  *
  * NO PERSONAL DATA IN URLS OR LOGS: the id is random and internal, the generated
  * filename is what the browser is offered, and nothing here logs a filename, a
@@ -44,12 +48,20 @@ export const Route = createFileRoute("/dokument/$id")({
           });
         }
 
+        /*
+         * TWO READS, ONE PER SCOPE, chosen from the SESSION — never from the URL.
+         * There is no `?as=owner` parameter to tamper with: the owner's read is
+         * taken only when the stored role on the account row says `owner`.
+         */
+        const roles = await import("~/lib/roles");
         let stored: Awaited<ReturnType<typeof access.getDocumentForDownload>>;
         try {
-          stored = await access.getDocumentForDownload(
-            access.viewerForUser(user),
-            params.id,
-          );
+          stored = roles.isOwnerRole(user.role)
+            ? await access.getDocumentForOwner(access.viewerForOwner(user), params.id)
+            : await access.getDocumentForDownload(
+                access.viewerForUser(user),
+                params.id,
+              );
         } catch {
           // A database failure must not leak internals — and must not pretend the
           // document does not exist either.
