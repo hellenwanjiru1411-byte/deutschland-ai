@@ -26,6 +26,7 @@ import siteConfig from "../../site.json";
 import { sql } from "~/db";
 import { areaForSubject, type AreaCode } from "~/lib/areas";
 import {
+  AI_ROUTE_CONNECTED,
   MAX_FILE_BYTES,
   MAX_FILES,
   MONTHLY_DOCUMENT_CAP,
@@ -257,6 +258,14 @@ export type IncomingDocument = {
   mimeType: string;
   size: number;
   contentBase64: string;
+  /**
+   * Does this document go to an AI provider? Decided once, in the server
+   * function, from `aiMeteringEnabled()` — then written onto the row so the pilot
+   * meter (`countDocumentsThisMonth`) and the record itself can never disagree
+   * about what was AI work. `false` means we only store it, and storing is
+   * unlimited.
+   */
+  aiMetered: boolean;
 };
 
 export type IncomingRequest = {
@@ -312,9 +321,9 @@ export async function saveRequest(
                   ${readingAid ? readingAid.locale : null},
                   ${readingAid ? new Date() : null})`;
   for (const doc of input.documents) {
-    await q`insert into documents (id, request_id, area, filename, mime_type, content_base64, size)
+    await q`insert into documents (id, request_id, area, filename, mime_type, content_base64, size, ai_metered)
             values (${randomUUID()}, ${requestId}, ${area}, ${doc.filename}, ${doc.mimeType},
-                    ${doc.contentBase64}, ${doc.size})`;
+                    ${doc.contentBase64}, ${doc.size}, ${doc.aiMetered === true})`;
   }
   return { id: requestId, area };
 }
@@ -381,6 +390,22 @@ export async function currentUser(): Promise<PublicUser | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * IS A DOCUMENT SENT TO AN AI PROVIDER? — the switch the pilot meter reads.
+ *
+ * Mirrors `AI_ROUTE_CONNECTED` in `src/lib/constants.ts` (the one line to flip
+ * when a provider is connected), with one extra: the environment can turn the
+ * meter on or off for a single test process (`PILOT_AI_METER=1` / `=0`), which is
+ * how `scripts/pilot-cap-check.mjs` exercises the refusal against the real
+ * database. Nothing else reads this; the browser cannot set it.
+ */
+export function aiMeteringEnabled(): boolean {
+  const raw = process.env.PILOT_AI_METER?.trim().toLowerCase();
+  if (raw === "1" || raw === "on" || raw === "true") return true;
+  if (raw === "0" || raw === "off" || raw === "false") return false;
+  return AI_ROUTE_CONNECTED;
 }
 
 /**

@@ -73,24 +73,46 @@ export const SESSION_DAYS = 30;
 /* ------------------------------------------------------- pilot safeguards */
 
 /*
- * THE PILOT DOCUMENT CAP — one number, and this is the only place it is written.
+ * THE PILOT CAP — ONE NUMBER, AND IT IS A METER ON AI WORK, NOT ON STORING.
  *
- * The owner pays for every letter out of their own pocket during the pilot, so the
- * number of documents one person may send is counted and limited. The owner's
- * draft figure (Oct 2026) is 3 per person per calendar month; it is a limit on
- * OUR bill, never a charge to the person, and it is lifted as soon as funding
- * allows. `src/server/data.server.ts` reads this default and lets the owner
- * override it with the `PILOT_DOCUMENT_CAP` environment variable, so raising the
- * cap during the pilot is configuration, not a code change.
+ * Owner's rule (Oct 2026): storing and organising documents is unlimited; the
+ * limit is on what the AI does with them. So the number below counts documents
+ * that are sent to an AI provider, per person, per calendar month. It exists
+ * because the owner pays for every letter out of their own pocket during the
+ * pilot: it is a limit on OUR bill, never a charge to the person, and it is
+ * lifted as soon as funding allows. `src/server/data.server.ts` reads this
+ * default and lets the owner override it with the `PILOT_DOCUMENT_CAP`
+ * environment variable, so raising it during the pilot is configuration, not a
+ * code change.
  *
- * WHAT COUNTS: every document sent with a request (see `countDocumentsThisMonth`
- * in `src/server/access.server.ts`). Today that is the same as "every document
- * uploaded", because no AI provider is connected yet. The owner has NOT decided
- * whether the cap should later count documents actually sent to an AI provider
- * instead of uploads — when that decision is taken, the counting rule changes in
- * that one function and nowhere else.
+ * WHAT COUNTS: only documents marked as going to an AI provider — the
+ * `documents.ai_metered` column. The counting rule itself is one line in
+ * `countDocumentsThisMonth` (`src/server/access.server.ts`); the mark is stamped
+ * at write time from `AI_ROUTE_CONNECTED` below, so the whole rule flips with
+ * that one constant.
  */
 export const MONTHLY_DOCUMENT_CAP = 3;
+
+/*
+ * IS THE AI ROUTE CONNECTED? — THE ONE LINE TO FLIP.
+ *
+ * `false` is the truth today: no model is connected, so the app cannot explain a
+ * letter, find a deadline or translate anything, and no document is ever sent to
+ * an AI provider. While it is `false`, no document is marked as AI work, the
+ * pilot meter therefore stays at 0, and NOTHING a person uploads is refused:
+ * storing paperwork is unlimited, exactly as the owner asked.
+ *
+ * When a provider is chosen and its contract signed, this becomes `true` in the
+ * same change: from then on the documents of a request count against
+ * `MONTHLY_DOCUMENT_CAP`, and the app refuses those past the limit — still never
+ * the storing of paperwork, only the AI work on it.
+ *
+ * The server also accepts `PILOT_AI_METER=1` / `=0` in the environment, so the
+ * rules can be exercised against the real database (`scripts/pilot-cap-check.mjs`)
+ * without editing this file. Configuration can turn the meter for a test process;
+ * only this constant turns it for the live site.
+ */
+export const AI_ROUTE_CONNECTED = false;
 
 /*
  * THE READING-AID ACKNOWLEDGEMENT VERSION.

@@ -11,6 +11,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import handler from "./dist/server/server.js";
+import {
+  securityHeaders,
+  withSecurityHeaders,
+} from "./src/server/security-headers.ts";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- the built server entry default-exports a fetch handler, and the dist import is untyped.
 const fetchHandler = handler as {
@@ -45,7 +49,11 @@ export default async function vercelHandler(
   res: ServerResponse
 ): Promise<void> {
   try {
-    const webRes = await fetchHandler.fetch(toWebRequest(req));
+    // The same security headers as `serve.ts` and the dev server: one list, in
+    // `src/server/security-headers.ts`, applied to every response.
+    const webRes = withSecurityHeaders(
+      await fetchHandler.fetch(toWebRequest(req)),
+    );
     res.statusCode = webRes.status;
     webRes.headers.forEach((value, key) => res.setHeader(key, value));
     if (webRes.body) {
@@ -63,6 +71,9 @@ export default async function vercelHandler(
     console.error("[team-site] SSR request failed", error);
     res.statusCode = 500;
     res.setHeader("content-type", "text/plain");
+    for (const [name, value] of Object.entries(securityHeaders())) {
+      res.setHeader(name, value);
+    }
     res.end("Internal Server Error");
   }
 }
