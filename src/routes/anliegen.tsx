@@ -94,9 +94,17 @@ function IntakePage() {
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // The cap in force and what is left of it this month. Both numbers come from
-  // the server; the page only displays them.
-  const capReached = pilot.remaining <= 0;
+  /*
+   * THE PILOT METER, as this page sees it. The numbers come from the server; the
+   * page only displays them.
+   *
+   * `pilot.remaining` is what is left of the meter on AI work — NOT a limit on
+   * storing documents, which is unlimited. So the meter can only refuse anything
+   * while the AI route is connected (`pilot.aiMetering`), and today it is not: no
+   * model is connected, every document is stored and nothing is refused. The page
+   * therefore never blocks the file field and never refuses an upload.
+   */
+  const capReached = pilot.aiMetering && pilot.remaining <= 0;
 
   async function onFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const chosen = Array.from(event.target.files ?? []);
@@ -107,9 +115,10 @@ function IntakePage() {
       setErrors((p) => ({ ...p, documents: t.errors.filesTooMany }));
       return;
     }
-    // The pilot cap, checked before the files are read so nobody spends time
-    // uploading something we would have to refuse. The server checks it again.
-    if (chosen.length > pilot.remaining) {
+    // The pilot meter on AI work, checked before the files are read — but only
+    // when the AI route is connected. Storing paperwork is unlimited. The server
+    // checks the same rule again.
+    if (pilot.aiMetering && chosen.length > pilot.remaining) {
       setErrors((p) => ({ ...p, documents: t.errors.capReached }));
       return;
     }
@@ -156,8 +165,12 @@ function IntakePage() {
      * and checked again in the server function, which is the one that decides.
      * A disabled button alone would not be a gate: this form can be submitted
      * without JavaScript, and a button is not a rule.
+     *
+     * The meter applies to AI work only, so it is only checked when the AI route
+     * is connected. Storing documents is never refused.
      */
-    if (documents.length > pilot.remaining) local.documents = t.errors.capReached;
+    if (pilot.aiMetering && documents.length > pilot.remaining)
+      local.documents = t.errors.capReached;
     if (documents.length > 0 && !readingAidAck)
       local.readingAid = t.errors.readingAidRequired;
     setErrors(local);
@@ -341,21 +354,25 @@ function IntakePage() {
         </Field>
 
         {/*
-          THE PILOT CAP — shown before the file field, so nobody chooses files
-          only to be told afterwards that we cannot take them.
+          THE PILOT METER — shown before the file field.
 
-          It says plainly that the limit is OURS, that it exists because we pay
-          per letter ourselves during the pilot, and that nothing is charged to
-          the person. When the limit is reached it says so in its own words and
-          keeps the human route open with a way to take it: our contact address,
-          and the overview where both routes are described. Never a silent
-          refusal and never a dead end — a request without documents is always
-          accepted, whatever the count says.
+          Owner's rule: storing and organising documents is unlimited, and the
+          limit of `cap` per calendar month applies only to what the AI does with
+          a letter — it protects the owner's bill, never a wall around the person.
+          So the number is never shown as a limit on uploads: while no provider is
+          connected the card says plainly that nothing is refused today
+          (`t.pilot.notConnected`), and the file field is never disabled. Only when
+          the AI route is connected AND the month's AI work is used up does the
+          card say so in its own words — and even then the human route stays open
+          with a way to take it: our contact address and the overview where both
+          routes are described. A request without documents is always accepted,
+          whatever the count says.
         */}
         <div
           className={`card p-5 ${capReached ? "bg-brand-soft/60" : "bg-paper"}`}
           data-pilot-cap={pilot.cap}
           data-pilot-used={pilot.usedThisMonth}
+          data-pilot-ai-metering={pilot.aiMetering ? "on" : "off"}
         >
           <p className="text-sm font-semibold text-ink-soft">
             {capReached ? t.pilot.reachedTitle : t.pilot.capTitle}
@@ -367,10 +384,12 @@ function IntakePage() {
             })}
           </p>
           <p className="mt-3 text-sm font-semibold text-brand-dark">
-            {fillNumbers(t.pilot.usage, {
-              used: pilot.usedThisMonth,
-              cap: pilot.cap,
-            })}
+            {pilot.aiMetering
+              ? fillNumbers(t.pilot.usage, {
+                  used: pilot.usedThisMonth,
+                  cap: pilot.cap,
+                })
+              : t.pilot.notConnected}
           </p>
           {capReached ? (
             <div className="mt-4 flex flex-wrap gap-3">

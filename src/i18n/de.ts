@@ -290,26 +290,31 @@ export const de = {
     },
   },
   /*
-   * PILOT SAFEGUARDS — the monthly document cap.
+   * PILOT SAFEGUARDS — the monthly meter on AI work.
    *
-   * The owner pays for every letter personally during the pilot, so the app counts
-   * and limits how many documents one person may send. Three things have to be
-   * said plainly in every language, and the smoke test checks that these strings
-   * exist: the limit is OURS, it exists because we pay per letter ourselves, and
-   * nothing is charged to the person. The human route must stay open, with a way
-   * to take it.
+   * Owner's rule (Oct 2026), and every language has to say exactly this:
+   *   - STORING AND ORGANISING DOCUMENTS IS UNLIMITED. The person's paperwork is
+   *     never held back, and these words must never read like a wall.
+   *   - The limit of {cap} per person per calendar month applies ONLY to what the
+   *     AI does with a letter, because every letter we put to a model is paid for
+   *     by us, out of our own pocket, during the pilot. It caps OUR bill.
+   *   - Nothing is ever charged to the person.
+   *   - While no provider is connected, `notConnected` says plainly that nothing
+   *     is refused today, so nobody reads the number as a limit on their uploads.
    *
    * `{used}` and `{cap}` are filled in by the page (`src/routes/anliegen.tsx`).
    * Every language has to keep both placeholders, or the numbers cannot be shown.
    */
   pilot: {
-    capTitle: "Grenze im Pilotbetrieb",
+    capTitle: "Unterlagen ablegen: unbegrenzt",
     capBody:
-      "Im Pilotbetrieb zahlen wir jede Unterlage selbst. Deshalb nehmen wir pro Person und Kalendermonat höchstens {cap} Unterlagen an. Das ist unsere Grenze — Ihnen wird nichts berechnet.",
-    usage: "{used} von {cap} Unterlagen in diesem Monat",
-    reachedTitle: "Für diesen Monat ist die Grenze erreicht",
+      "Unterlagen ablegen und ordnen können Sie so viele Sie möchten — dafür gibt es keine Grenze. Die Grenze von {cap} pro Person und Kalendermonat gilt allein für das, was die KI mit einem Schreiben tut: Jede Unterlage, die wir einer KI vorlegen, zahlen wir im Pilotbetrieb selbst. Sie begrenzt damit unsere Kosten und ist keine Schranke für Sie. Ihnen wird nichts berechnet.",
+    usage: "{used} von {cap} KI-Auswertungen in diesem Monat",
+    notConnected:
+      "Eine KI ist noch nicht angebunden. Deshalb wird heute nichts abgelehnt: Sie können Ihre Unterlagen ablegen, so viele Sie möchten.",
+    reachedTitle: "Die KI-Auswertung ist für diesen Monat ausgeschöpft",
     reachedBody:
-      "Sie haben in diesem Monat so viele Unterlagen gesendet, wie wir im Pilotbetrieb annehmen können. Das ist unsere Grenze, nicht Ihre: Ihnen wird nichts berechnet. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen, wir kümmern uns darum.",
+      "Wir haben in diesem Monat so viele Unterlagen einer KI vorgelegt, wie wir im Pilotbetrieb selbst bezahlen können. Das ist unsere Grenze, nicht Ihre: Ihnen wird nichts berechnet, und bereits abgelegte Unterlagen bleiben erhalten. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen, wir kümmern uns darum. Im nächsten Kalendermonat ist die KI-Auswertung wieder frei.",
     contactCta: "Schreiben Sie uns direkt",
   },
   /*
@@ -402,7 +407,7 @@ export const de = {
     readingAidRequired:
       "Bitte bestätigen Sie den Hinweis zur Lese- und Verständnishilfe, bevor Sie Unterlagen senden.",
     capReached:
-      "Mehr Unterlagen können wir in diesem Monat nicht annehmen: Im Pilotbetrieb zahlen wir jede Unterlage selbst und nehmen deshalb nur eine begrenzte Zahl pro Person an. Ihnen wird nichts berechnet. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen.",
+      "Für diesen Monat sind die KI-Auswertungen ausgeschöpft: Jede Unterlage, die wir einer KI vorlegen, zahlen wir im Pilotbetrieb selbst, deshalb ist die Zahl pro Person begrenzt. Ihnen wird nichts berechnet, und Ihre bisherigen Unterlagen bleiben erhalten. Der menschliche Weg bleibt offen — schildern Sie uns Ihr Anliegen ohne Unterlagen, wir kümmern uns darum. Im nächsten Kalendermonat ist die KI-Auswertung wieder frei.",
     fileType: "Nur PDF-, JPG- und PNG-Dateien. Bitte laden Sie die Datei erneut hoch.",
     fileTooLarge: "Diese Datei ist zu groß. Maximal 2 MB pro Datei.",
     filesTooMany: "Bitte laden Sie höchstens 2 Dateien hoch.",

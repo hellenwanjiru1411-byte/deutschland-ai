@@ -255,8 +255,16 @@ export const setLanguage = createServerFn({ method: "POST" })
  */
 export type PilotStatus = {
   cap: number;
+  /** How many of this person's documents the AI took on this month (not uploads). */
   usedThisMonth: number;
+  /** `cap - usedThisMonth`, floored at 0. Only AI work is ever refused. */
   remaining: number;
+  /**
+   * Is the AI route connected at all? `false` today: no model is connected, so
+   * the meter cannot bite and the page says so instead of showing a limit that
+   * does not apply. Storing documents is unlimited either way.
+   */
+  aiMetering: boolean;
   readingAidVersion: string;
   /** The human route's address, when the site has one configured. */
   contactEmail: string | null;
@@ -267,10 +275,12 @@ export const getPilotStatus = createServerFn({ method: "GET" }).handler(
     const server = await import("./data.server");
     const cap = server.monthlyDocumentCap();
     const contactEmail = server.contactEmail();
+    const aiMetering = server.aiMeteringEnabled();
     const empty: PilotStatus = {
       cap,
       usedThisMonth: 0,
       remaining: cap,
+      aiMetering,
       readingAidVersion: READING_AID_VERSION,
       contactEmail,
     };
@@ -393,6 +403,13 @@ export const submitIntake = createServerFn({ method: "POST" })
           mimeType: doc.mimeType,
           size: doc.size,
           contentBase64: doc.contentBase64,
+          /*
+           * Does this document go to an AI provider? One switch decides, on the
+           * server: `AI_ROUTE_CONNECTED` (today `false` — no model is connected).
+           * While it is `false` every document is stored and none is AI work, so
+           * the pilot meter stays at 0 and nothing is refused.
+           */
+          aiMetered: server.aiMeteringEnabled(),
         })),
       });
 

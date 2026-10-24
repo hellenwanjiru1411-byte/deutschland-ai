@@ -38,10 +38,12 @@ import {
   inAreaOnly,
 } from "../src/lib/areas.ts";
 import {
+  AI_ROUTE_CONNECTED,
   MONTHLY_DOCUMENT_CAP,
   READING_AID_VERSION,
   SUBJECT_KEYS,
 } from "../src/lib/constants.ts";
+import { meteredDocumentCount, overCap } from "../src/lib/pilot-cap.ts";
 import { CAPABILITY_CODES } from "../src/lib/capabilities.ts";
 
 const BASE = (
@@ -465,6 +467,81 @@ await step("pilot safeguards", async () => {
     "the monthly count lives in the access module",
     /export async function countDocumentsThisMonth/.test(access),
     "countDocumentsThisMonth",
+  );
+});
+
+/* ------------------------------------------------- pilot meter on AI work */
+
+await step("pilot meter counts AI work, never stored paperwork", async () => {
+  const root = new URL("../", import.meta.url).pathname;
+  const CAP = MONTHLY_DOCUMENT_CAP;
+  const docs = (count, aiMetered) =>
+    Array.from({ length: count }, () => ({ aiMetered }));
+
+  // (a) STORING IS UNLIMITED. Forty documents that are not AI work are not over
+  // any limit, because the meter does not count them at all.
+  expect(
+    "storing far more than the cap is never refused",
+    meteredDocumentCount(docs(40, false)) === 0 &&
+      overCap(0, meteredDocumentCount(docs(40, false)), CAP) === false,
+    "40 stored documents, 0 counted",
+  );
+
+  // (b) WITH THE METER ON, AI WORK STOPS AT THE CAP.
+  expect(
+    "with the meter on, the document past the cap is refused",
+    overCap(CAP, 1, CAP) === true && overCap(CAP - 1, 1, CAP) === false,
+    `${String(CAP)} accepted, the next one refused`,
+  );
+
+  // (c) WITH THE METER OFF, NOTHING IS REFUSED — even with the meter already full
+  // of AI work from earlier in the month.
+  expect(
+    "with the meter off, nothing is refused even past the cap",
+    overCap(CAP, 0, CAP) === false && overCap(CAP, meteredDocumentCount(docs(5, false)), CAP) === false,
+    "5 more stored documents after the cap, none refused",
+  );
+
+  // The switch and the copy have to agree with each other. While no provider is
+  // connected, every language must say plainly that nothing is refused today.
+  expect(
+    "the AI route is off, and every language says so",
+    AI_ROUTE_CONNECTED === false &&
+      LANGUAGES.every(
+        (language) =>
+          typeof language.dictionary.pilot?.notConnected === "string" &&
+          language.dictionary.pilot.notConnected.trim().length > 0,
+      ),
+    AI_ROUTE_CONNECTED === false ? "no provider connected, said in every language" : "AI route is ON",
+  );
+
+  // The owner's rule in words: storing is unlimited and the number is about the
+  // AI. Checked in German (which governs) and in English.
+  const de = DEFAULT.dictionary;
+  expect(
+    "the German copy says storing is unlimited and the limit is the AI's",
+    /unbegrenzt|keine Grenze/i.test(de.pilot.capBody) &&
+      /KI/.test(de.pilot.capBody) &&
+      /keine Schranke/i.test(de.pilot.capBody),
+    "unbegrenzt, KI, keine Schranke",
+  );
+  const english = LANGUAGES.find((language) => language.code === "en");
+  expect(
+    "the English copy says storing is unlimited and the limit is the AI's",
+    english !== undefined &&
+      /unlimited/i.test(english.dictionary.pilot.capBody) &&
+      /AI/i.test(english.dictionary.pilot.capBody),
+    "unlimited, AI",
+  );
+
+  // The rule is also proved against the real database, not only in arithmetic.
+  // That script imports the app's own gate and count and cleans up after itself.
+  expect(
+    "a database-backed check of the meter exists and is documented",
+    readFileSync(join(root, "scripts/pilot-cap-check.mjs"), "utf8").includes(
+      "saveRequestUnderPilotRules",
+    ),
+    "scripts/pilot-cap-check.mjs",
   );
 });
 

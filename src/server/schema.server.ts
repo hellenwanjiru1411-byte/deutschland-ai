@@ -87,6 +87,15 @@ async function createTables(): Promise<void> {
     created_at timestamptz not null default now()
   )`;
   await q`create index if not exists documents_request_id_idx on documents (request_id)`;
+  /*
+   * `ai_metered` — is this document, or was it, AI work? It is what the pilot
+   * meter counts (`countDocumentsThisMonth`), so that storing paperwork stays
+   * unlimited while the owner's AI bill has a limit. Existing rows take `false`,
+   * which is right: nothing has ever been sent to a provider.
+   */
+  await q`alter table documents add column if not exists ai_metered boolean not null default false`;
+  await q`create index if not exists documents_ai_metered_idx
+          on documents (ai_metered) where ai_metered`;
 
   await q`create table if not exists login_attempts (
     email_norm text primary key,

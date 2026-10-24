@@ -1,8 +1,43 @@
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
+
+import { securityHeaders } from "./src/server/security-headers.ts";
+
+/**
+ * The security headers on the WORKING site.
+ *
+ * `serve.ts` puts them on every response the built site serves, but the working
+ * site is this Vite dev server, which never runs `serve.ts`. Without this plugin
+ * the headers would exist in production only — and a header nobody can see on the
+ * site we develop against is a header nobody checks. One list, in
+ * `src/server/security-headers.ts`; the two development relaxations are
+ * documented there and never reach the built site.
+ */
+function securityHeadersPlugin(): Plugin {
+  const apply = (mode: "development" | "production") => {
+    const headers = securityHeaders(mode);
+    return (
+      _req: unknown,
+      res: { setHeader: (name: string, value: string) => void },
+      next: () => void,
+    ) => {
+      for (const [name, value] of Object.entries(headers)) res.setHeader(name, value);
+      next();
+    };
+  };
+  return {
+    name: "aie-security-headers",
+    configureServer(server) {
+      server.middlewares.use(apply("development"));
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(apply("production"));
+    },
+  };
+}
 
 export default defineConfig({
   server: {
@@ -30,6 +65,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    securityHeadersPlugin(),
     tailwindcss(),
     tsConfigPaths({
       projects: ["./tsconfig.json"],
