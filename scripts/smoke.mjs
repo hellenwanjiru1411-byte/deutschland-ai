@@ -529,7 +529,7 @@ await step("pilot meter counts AI work, never stored paperwork", async () => {
   expect(
     "the English copy says storing is unlimited and the limit is the AI's",
     english !== undefined &&
-      /unlimited/i.test(english.dictionary.pilot.capBody) &&
+      /unlimited/i.test(english.dictionary.pilot.capTitle) &&
       /AI/i.test(english.dictionary.pilot.capBody),
     "unlimited, AI",
   );
@@ -600,7 +600,15 @@ await step("one read path", async () => {
   // schema module is allowed as well, because its migration has to read the
   // rows it is filling in — and it is the file that creates the tables.
   const READ = /\bfrom\s+(requests|documents)\b/;
-  const READ_ALLOWED = ["src/server/access.server.ts", "src/server/schema.server.ts"];
+  const READ_ALLOWED = [
+    "src/server/access.server.ts",
+    "src/server/schema.server.ts",
+    // The pilot-meter check is a test harness, not app code: it reads the rows it
+    // created itself so it can prove the meter and then delete them. It is the
+    // only file outside the access module allowed to name those tables, and it
+    // never runs in the app.
+    "scripts/pilot-cap-check.mjs",
+  ];
   // A write may only live in the one write path (data.server.ts) and in the
   // migration. No route and no component ever writes a case itself.
   const WRITE = /\b(into|update)\s+(requests|documents)\b/i;
